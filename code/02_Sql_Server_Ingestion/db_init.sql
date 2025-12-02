@@ -1,3 +1,28 @@
+/*
+=============================================================
+Create Database, Schemas, Tables & Enable Change Data Capture
+=============================================================
+Script Purpose:
+    This script creates a new database named 'claims_dev' and sets up the complete
+    infrastructure for real-time data capture and streaming integration.
+    
+    The script performs the following operations:
+    1. Creates database 'claims_dev' and schema 'demo'
+    2. Creates three main tables: policy, claim, and customer
+    3. Enables Change Tracking on database and all tables for incremental data capture
+    4. Enables Change Data Capture (CDC) on database and tables for real-time streaming
+    5. Prepares infrastructure for DDL capture and schema evolution support
+    
+    Tables Created:
+    - demo.policy: Insurance policy information with vehicle and coverage details
+    - demo.claim: Insurance claims with incident details and damage amounts  
+    - demo.customer: Customer demographic and location information
+    
+    CDC Features Enabled:
+    - Change Tracking: 14-day retention for incremental batch processing
+    - Change Data Capture: Real-time change streaming for Databricks integration
+    - Net changes support: Optimized change detection for data pipelines
+*/
 
 
 
