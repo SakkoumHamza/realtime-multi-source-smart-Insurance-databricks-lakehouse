@@ -1,3 +1,6 @@
+
+
+
 CREATE DATABASE claims_dev
 USE claims_dev
 CREATE SCHEMA demo
@@ -52,3 +55,38 @@ CREATE TABLE demo.customer (
 )
 
 
+
+-- 1. ENABLE CHANGE TRACKING ON DB --
+ALTER DATABASE claims_dev SET CHANGE_TRACKING = ON (CHANGE_RETENTION = 14 DAYS, AUTO_CLEANUP = ON)
+
+-- 2. ENABLE CHANGE TRACKING ON TABLES --
+ALTER TABLE demo.policy ENABLE CHANGE_TRACKING
+ALTER TABLE demo.claim ENABLE CHANGE_TRACKING
+ALTER TABLE demo.customer ENABLE CHANGE_TRACKING
+
+-- 3. ENABLE CDC on DB --
+EXEC msdb.dbo.rds_cdc_enable_db 'claims_dev'
+
+-- 4. ENABLE CDC ON TABLES --
+EXEC sys.sp_cdc_enable_table
+@source_schema = N'demo',
+@source_name   = N'policy',
+@role_name     = NULL,
+@supports_net_changes = 1
+
+
+EXEC sys.sp_cdc_enable_table
+@source_schema = N'demo',
+@source_name   = N'claim',
+@role_name     = NULL,
+@supports_net_changes = 1
+
+
+EXEC sys.sp_cdc_enable_table
+@source_schema = N'demo',
+@source_name   = N'customer',
+@role_name     = NULL,
+@supports_net_changes = 1
+
+-- 4. Set up DDL capture and schema evolution -
+--> Run Script -> ddl_support_objects.sql and change the fields to your needs
