@@ -1,4 +1,5 @@
 pyarrow 
 azure-eventhub
 pandas
-configparser
+pyarrow 
+uvloop
