@@ -1,0 +1,8 @@
+
+.databricks
+code/01_streaming_ingestion/client.properties
+code/01_streaming_ingestion/conf.conf
+/data/*.ndf
+/data/*.ldf
+/data/*.mdf
+*.bin
