@@ -14,35 +14,41 @@
 */
 
 
-
-
 USE claims;
+GO
 
+/***************************************************************************************************
+ 1. POLICY TABLE
+****************************************************************************************************/
 
+-- DROP raw table safely
+IF OBJECT_ID('staging.policy_raw', 'U') IS NOT NULL
+    DROP TABLE staging.policy_raw;
+GO
 
--- 1. Policy table
-
-DROP TABLE staging.policy_raw
 
 CREATE TABLE staging.policy_raw (
-    policy_no           VARCHAR(100), -- dirty, NOT a PK
-    customer_id         VARCHAR(100),
-    coverage_type       VARCHAR(100),
-    policy_start_date   VARCHAR(50),
-    policy_end_date     VARCHAR(50),
-    make                VARCHAR(100),
-    model               VARCHAR(100),
-    model_year          VARCHAR(50),
-    chassis_no          VARCHAR(100),
-    use_of_vehicle      VARCHAR(100),
-    product             VARCHAR(100),
-    sum_insured         VARCHAR(50),
-    premium             VARCHAR(50),
-    deductable          VARCHAR(50)
+    policy_no        VARCHAR(100),
+    cust_id          VARCHAR(100),
+    policy_type      VARCHAR(100),
+    pol_issue_date   VARCHAR(50),
+    pol_eff_date     VARCHAR(50),
+    pol_expiry_date  VARCHAR(50),
+    make             VARCHAR(100),
+    model            VARCHAR(100),
+    model_year       VARCHAR(50),
+    chassis_no       VARCHAR(100),
+    use_of_vehicle   VARCHAR(100),
+    product          VARCHAR(100),
+    sum_insured      VARCHAR(50),
+    premium          VARCHAR(50),
+    deductable       VARCHAR(50),
 );
 
+
+
 BULK INSERT staging.policy_raw
-FROM '/var/opt/mssql/datasets/policies.csv' 
+FROM '/var/opt/mssql/data/sql_server/policies.csv' 
 WITH (
     FIRSTROW = 2,
     FIELDTERMINATOR = ',',
@@ -50,13 +56,13 @@ WITH (
     TABLOCK
 );
 
-
 INSERT INTO staging.policy (
     policy_no,
-    customer_id,
-    coverage_type,
-    policy_start_date,
-    policy_end_date,
+    cust_id,
+    policy_type,
+    pol_issue_date,
+    pol_eff_date,
+    pol_expiry_date,
     make,
     model,
     model_year,
@@ -70,12 +76,14 @@ INSERT INTO staging.policy (
     ingest_file_name,
     ingest_source
 )
+
 SELECT
-    policy_no,
-    customer_id,
-    coverage_type,
-    policy_start_date,
-    policy_end_date,
+   policy_no,
+    cust_id,
+    policy_type,
+    pol_issue_date,
+    pol_eff_date,
+    pol_expiry_date,
     make,
     model,
     model_year,
@@ -90,9 +98,14 @@ SELECT
     'LOCAL_FS'
 FROM staging.policy_raw;
 
--- 2. claim table
+/***************************************************************************************************
+ 2. CLAIMS TABLE
+****************************************************************************************************/
 
-DROP TABLE staging.claim_raw
+-- FIXED: your check incorrectly referenced policy_raw
+IF OBJECT_ID('staging.claim_raw', 'U') IS NOT NULL
+    DROP TABLE staging.claim_raw;
+GO
 
 CREATE TABLE staging.claim_raw (
     claim_no                        VARCHAR(255), -- dirty, NOT a PK
@@ -118,7 +131,7 @@ CREATE TABLE staging.claim_raw (
 
 
 BULK INSERT staging.claim_raw
-FROM '/var/opt/mssql/datasets/claims.csv'
+FROM '/var/opt/mssql/data/sql_server/claims.csv'
 WITH (
     FIRSTROW = 2,
     FIELDTERMINATOR = ',',
@@ -128,57 +141,64 @@ WITH (
 
 
 INSERT INTO staging.claim (
-    claim_no                    ,  
-    policy_no                   ,
-    claim_date                  ,
-    months_as_customer          ,
-    injury                      ,
-    property                    ,
-    vehicle                     ,
-    total                       ,
-    collision_type              ,
-    number_of_vehicles_involved ,
-    driver_age                  ,
-    insured_relationship        ,
-    license_issue_date          ,
-    incident_date               ,
-    incident_hour               ,
-    incident_type               ,
-    incident_severity           ,
-    number_of_witnesses         ,
-    suspicious_activity         ,
+    claim_no, -- dirty, NOT a PK
+    policy_no,
+    claim_date,
+    months_as_customer,
+    injury,
+    property,
+    vehicle,
+    total,
+    collision_type,
+    number_of_vehicles_involved,
+    driver_age,
+    insured_relationship,
+    license_issue_date,
+    incident_date,
+    incident_hour,
+    incident_type,
+    incident_severity,
+    number_of_witnesses,
+    suspicious_activity,
+
     ingest_batch_id,
     ingest_file_name,
     ingest_source
 )
 SELECT
-    claim_no                    , 
-    policy_no                   ,
-    claim_date                  ,
-    months_as_customer          ,
-    injury                      ,
-    property                    ,
-    vehicle                     ,
-    total                       ,
-    collision_type              ,
-    number_of_vehicles_involved ,
-    driver_age                  ,
-    insured_relationship        ,
-    license_issue_date          ,
-    incident_date               ,
-    incident_hour               ,
-    incident_type               ,
-    incident_severity           ,
-    number_of_witnesses         ,
-    suspicious_activity ,
+     claim_no,
+    policy_no,
+    claim_date,
+    months_as_customer,
+    injury,
+    property,
+    vehicle,
+    total,
+    collision_type,
+    number_of_vehicles_involved,
+    driver_age,
+    insured_relationship,
+    license_issue_date,
+    incident_date,
+    incident_hour,
+    incident_type,
+    incident_severity,
+    number_of_witnesses,
+    suspicious_activity,
+
     'BATCH_2025_01',
     'claims.csv',
     'LOCAL_FS'
 
 FROM staging.claim_raw ;
 
---- 3. Customer table
+/***************************************************************************************************
+ 3. CUSTOMER TABLE
+****************************************************************************************************/
 
+IF OBJECT_ID('staging.customer_raw', 'U') IS NOT NULL
+    DROP TABLE staging.customer_raw;
+GO
 CREATE TABLE staging.customer_raw (
     customer_id VARCHAR(255), -- dirty, NOT a PK
     date_of_birth VARCHAR(255),
@@ -191,7 +211,7 @@ CREATE TABLE staging.customer_raw (
 
 -- 3. POPULATE customer TABLE 
 BULK INSERT staging.customer_raw
-FROM '/var/opt/mssql/datasets/customers.csv'
+FROM '/var/opt/mssql/data/sql_server/customers.csv'
 WITH (
     FIRSTROW = 2,
     FIELDTERMINATOR = ',',
@@ -207,6 +227,7 @@ INSERT INTO staging.customer(
     neighborhood ,
     zip_code ,
     name ,
+
     ingest_batch_id ,
     ingest_file_name ,
     ingest_source   
@@ -218,6 +239,7 @@ SELECT
     neighborhood ,
     zip_code ,
     name ,
+
     'BATCH_2025_01',
     'customers.csv',
     'LOCAL_FS'
