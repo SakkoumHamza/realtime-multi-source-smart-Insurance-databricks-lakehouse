@@ -26,6 +26,10 @@ def get_lat_long(batch_iter: Iterator[pd.Series]) -> Iterator[pd.DataFrame]:
   for address in batch_iter:
     yield address.apply(lambda x: geocode(geolocator, x))
 
+#------------------------------------------------------
+# aggregated_telematics ✅
+#------------------------------------------------------
+
 @dlt.table(
     name=f"{catalog}.{gold_schema}.aggregated_telematics",
     comment="Average telematics",
@@ -44,7 +48,9 @@ def telematics():
         )
     )
 
-# --- CLAIM-POLICY ---
+#------------------------------------------------------
+# customer_claim_policy
+#------------------------------------------------------
 @dlt.table(
     name=f"{catalog}.{gold_schema}.customer_claim_policy",
     comment = "Curated claim joined with policy records",
@@ -53,21 +59,16 @@ def telematics():
     }
 )
 def customer_claim_policy():
-    # Read the cleaned policy records
-    policy = dlt.readStream(f"{catalog}.{silver_schema}.policy")
-    # Read the cleaned claim records
-    claim = dlt.readStream(f"{catalog}.{silver_schema}.claim")
-    # Read the cleaned customer records
-    customer = dlt.readStream(f"{catalog}.{silver_schema}.customer") 
+
+    policy = dlt.read(f"{catalog}.{silver_schema}.policy")
+    claim = dlt.read(f"{catalog}.{silver_schema}.claim")
+    customer = dlt.read(f"{catalog}.{silver_schema}.customer") 
 
     claim_policy = claim.join(policy, "policy_no")
 
-    customer_renamed = customer.withColumnRenamed("customer_id", "customer_id_customer")
 
-
-    df_cleaned = claim_policy.join(
-        customer_renamed,
-        claim_policy.customer_id == customer_renamed.customer_id_customer).drop( 
+    df = claim_policy.join( customer, claim_policy.cust_id == customer.customer_id)
+    df_cleaned = df.drop( 
         "customer_id_customer",       
         "ingest_source",
         "ingest_file_name",
@@ -78,7 +79,10 @@ def customer_claim_policy():
     )
     return df_cleaned
 
-# --- CLAIM-POLICY-TELEMATICS ---
+#------------------------------------------------------
+# customer_claim_policy_telematics
+#------------------------------------------------------
+
 @dlt.table(
     name=f"{catalog}.{gold_schema}.customer_claim_policy_telematics",
     comment="claims with geolocation latitude/longitude",
@@ -86,7 +90,6 @@ def customer_claim_policy():
         "quality": "gold"
     }
 )
-
 
 def customer_claim_policy_telematics():
     telematics = dlt.read(f"{catalog}.{gold_schema}.aggregated_telematics")
