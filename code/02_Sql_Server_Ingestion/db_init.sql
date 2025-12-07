@@ -36,45 +36,76 @@ Next Steps After Execution:
 ======================================================================
 */
 
+USE master;
+GO
 
-DROP DATABASE claims
+-- Drop database if it exists
+IF DB_ID('claims') IS NOT NULL
+BEGIN
+    ALTER DATABASE claims SET SINGLE_USER WITH ROLLBACK IMMEDIATE;
+    DROP DATABASE claims;
+END;
+GO
 
-CREATE DATABASE claims
+-- Create new database
+CREATE DATABASE claims;
+GO
 
-USE claims
+-- Switch to it
+USE claims;
+GO
 
-Create SCHEMA staging
+-- Create schema if not exists
+IF NOT EXISTS (SELECT * FROM sys.schemas WHERE name = 'staging')
+    EXEC('CREATE SCHEMA staging');
+GO
+
+-- Drop tables only if they exist
+IF OBJECT_ID('staging.policy', 'U') IS NOT NULL
+    DROP TABLE staging.policy;
+GO
+
+IF OBJECT_ID('staging.customer', 'U') IS NOT NULL
+    DROP TABLE staging.customer;
+GO
+
+IF OBJECT_ID('staging.claim', 'U') IS NOT NULL
+    DROP TABLE staging.claim;
+GO
 
 -- 1. Staging Table for Policy
 -- All columns converted to VARCHAR for flexible data ingestion
 
 CREATE TABLE staging.policy (
-    policy_sk BIGINT IDENTITY(1,1) PRIMARY KEY,  -- Unified PK (1st column)
-    policy_no           VARCHAR(100),
-    customer_id         VARCHAR(100),
-    coverage_type       VARCHAR(100),
-    policy_start_date   VARCHAR(50),
-    policy_end_date     VARCHAR(50),
-    make                VARCHAR(100),
-    model               VARCHAR(100),
-    model_year          VARCHAR(50),
-    chassis_no          VARCHAR(100),
-    use_of_vehicle      VARCHAR(100),
-    product             VARCHAR(100),
-    sum_insured         VARCHAR(50),
-    premium             VARCHAR(50),
-    deductable          VARCHAR(50),
+    policy_sk BIGINT IDENTITY(1,1) PRIMARY KEY,
+    policy_no        VARCHAR(100),
+    cust_id          VARCHAR(100),
+    policy_type      VARCHAR(100),
+    pol_issue_date   VARCHAR(50),
+    pol_eff_date     VARCHAR(50),
+    pol_expiry_date  VARCHAR(50),
+    make             VARCHAR(100),
+    model            VARCHAR(100),
+    model_year       VARCHAR(50),
+    chassis_no       VARCHAR(100),
+    use_of_vehicle   VARCHAR(100),
+    product          VARCHAR(100),
+    sum_insured      VARCHAR(50),
+    premium          VARCHAR(50),
+    deductable       VARCHAR(50),
 
+    -- 3️⃣ Ingestion metadata
     ingest_batch_id     VARCHAR(50),
     ingest_file_name    VARCHAR(255),
     ingest_source       VARCHAR(50),
     ingest_timestamp    DATETIME2 DEFAULT SYSDATETIME()
 );
 
+
 -- Staging Table for Claims (claims.csv)
 CREATE TABLE staging.claim(
     claim_sk                        BIGINT IDENTITY(1,1) PRIMARY KEY,  -- Unified PK
-    claim_no                        VARCHAR(255), -- dirty, NOT a PK
+       claim_no                        VARCHAR(255), -- dirty, NOT a PK
     policy_no                       VARCHAR(255),
     claim_date                      VARCHAR(255),
     months_as_customer              VARCHAR(255),
