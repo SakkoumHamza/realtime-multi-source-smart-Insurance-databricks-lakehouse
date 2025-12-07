@@ -11,15 +11,13 @@ parquet_directory = "data/telematics"
 # Read connection string from configuration file
 def read_connection_string():
     config = configparser.ConfigParser()
-    config.read('/Users/mac/Documents/Projects/databricks-zero-to-hero-course-main/code/01_streaming_ingestion/conf.conf')
-    
-    # If the config file has sections, use DEFAULT section
+    config.read('/Users/mac/Documents/Projects/insurance-databricks-lakehouse/code/01_streaming_ingestion/conf.conf')
     # Otherwise, read the raw connection_string value
     try:
         return config['EVENT_HUB']['connection_string']
     except KeyError as exc:
         # Handle case where there are no sections in the config file
-        with open('/Users/mac/Documents/Projects/databricks-zero-to-hero-course-main/code/01_streaming_ingestion/conf.conf', 'r', encoding='utf-8') as f:
+        with open('/Users/mac/Documents/Projects/insurance-databricks-lakehouse/code/01_streaming_ingestion/conf.conf', 'r', encoding='utf-8') as f:
             content = f.read().strip()
             # Extract connection string value after the = sign
             if 'connection_string' in content:
