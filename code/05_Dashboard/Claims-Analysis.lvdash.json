@@ -1,0 +1,1220 @@
+{
+  "datasets": [
+    {
+      "name": "294be7b1",
+      "displayName": "loss_ratio_liability",
+      "queryLines": [
+        "SELECT\n",
+        "  round(c.total_claims / p.total_premium, 2) AS loss_ratio\n",
+        "FROM\n",
+        "  (\n",
+        "    SELECT\n",
+        "      round(curr.total_premium, 0) as total_premium\n",
+        "    FROM\n",
+        "      (\n",
+        "        SELECT\n",
+        "          sum(premium * months_active) AS total_premium\n",
+        "        FROM\n",
+        "          (\n",
+        "            SELECT\n",
+        "              pol_eff_date,\n",
+        "              pol_expiry_date,\n",
+        "              premium,\n",
+        "              round(months_between(pol_expiry_date, pol_eff_date), 0) AS months_active\n",
+        "            FROM\n",
+        "              `claims_catalog`.`02_silver`.policy\n",
+        "            WHERE\n",
+        "              pol_issue_date BETWEEN :start_date\n",
+        "              AND :end_date\n",
+        "          )\n",
+        "        WHERE\n",
+        "          months_active > 0\n",
+        "      ) curr\n",
+        "      JOIN (\n",
+        "        SELECT\n",
+        "          sum(premium * months_active) AS total_premium\n",
+        "        FROM\n",
+        "          (\n",
+        "            SELECT\n",
+        "              pol_eff_date,\n",
+        "              pol_expiry_date,\n",
+        "              premium,\n",
+        "              round(months_between(pol_expiry_date, pol_eff_date), 0) AS months_active\n",
+        "            FROM\n",
+        "              `claims_catalog`.`02_silver`.policy\n",
+        "            WHERE\n",
+        "              pol_issue_date BETWEEN date_sub(\n",
+        "                :start_date,\n",
+        "                datediff(:end_date, :start_date)\n",
+        "              )\n",
+        "              AND date_sub(\n",
+        "                :end_date,\n",
+        "                datediff(:end_date, :start_date)\n",
+        "              )\n",
+        "          )\n",
+        "        WHERE\n",
+        "          months_active > 0\n",
+        "      ) prev\n",
+        "  ) p\n",
+        "  JOIN (\n",
+        "    SELECT\n",
+        "      round(curr.total_claims, 0) AS total_claims\n",
+        "    FROM\n",
+        "      (\n",
+        "        SELECT\n",
+        "          sum(injury) AS total_claims\n",
+        "        FROM\n",
+        "          `claims_catalog`.`02_silver`.claim\n",
+        "        WHERE\n",
+        "          claim_date BETWEEN :start_date\n",
+        "          AND :end_date\n",
+        "      ) curr\n",
+        "  ) c;"
+      ],
+      "parameters": [
+        {
+          "displayName": "start_date",
+          "keyword": "start_date",
+          "dataType": "DATE",
+          "defaultSelection": {
+            "values": {
+              "dataType": "DATE",
+              "values": [
+                {
+                  "value": "2015-01-01"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "displayName": "end_date",
+          "keyword": "end_date",
+          "dataType": "DATE",
+          "defaultSelection": {
+            "values": {
+              "dataType": "DATE",
+              "values": [
+                {
+                  "value": "2021-05-01"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "ce8a3ca1",
+      "displayName": "Claim - vehicleAge",
+      "queryLines": [
+        "SELECT\n",
+        "  COUNT(*) AS count,\n",
+        "  make,\n",
+        "  model_year\n",
+        "FROM\n",
+        "  `claims_catalog`.`03_gold`.customer_claim_policy_telematics\n",
+        "GROUP BY\n",
+        "  make,\n",
+        "  model_year"
+      ],
+      "catalog": "claims_catalog",
+      "schema": "03_gold"
+    },
+    {
+      "name": "eac405b3",
+      "displayName": "Claims - Frequency by Hour",
+      "queryLines": [
+        "SELECT\n",
+        "  incident_hour,\n",
+        "  COUNT(*) AS incidents,\n",
+        "  SUM(injury) AS liability_amount,\n",
+        "  SUM(property) + SUM(vehicle) AS property_amount\n",
+        "FROM\n",
+        "  `claims_catalog`.`02_silver`.claim\n",
+        "GROUP BY\n",
+        "  incident_hour\n",
+        "ORDER BY\n",
+        "  incident_hour;"
+      ]
+    },
+    {
+      "name": "4ed9ef43",
+      "displayName": "Claims - Summary",
+      "queryLines": [
+        "SELECT\n",
+        "  incident_type,\n",
+        "  incident_severity,\n",
+        "  COUNT(incident_severity)\n",
+        "FROM\n",
+        "  `claims_catalog`.`03_gold`.customer_claim_policy_telematics\n",
+        "WHERE\n",
+        "  to_date(claim_date) > :start_date AND\n",
+        "  to_date(claim_date) < :end_date\n",
+        "GROUP BY\n",
+        "  incident_type,\n",
+        "  incident_severity"
+      ],
+      "parameters": [
+        {
+          "displayName": "start_date",
+          "keyword": "start_date",
+          "dataType": "DATE",
+          "defaultSelection": {
+            "values": {
+              "dataType": "DATE",
+              "values": [
+                {
+                  "value": "2015-01-01"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "displayName": "end_date",
+          "keyword": "end_date",
+          "dataType": "DATE",
+          "defaultSelection": {
+            "values": {
+              "dataType": "DATE",
+              "values": [
+                {
+                  "value": "2024-05-04T00:00:00.000"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "fba42bc3",
+      "displayName": "Claims - loss_ratio_property",
+      "queryLines": [
+        "SELECT\n",
+        "  round(c.total_claims / p.total_premium, 2) AS loss_ratio\n",
+        "FROM\n",
+        "  (\n",
+        "    SELECT\n",
+        "      round(curr.total_premium, 0) as total_premium\n",
+        "    FROM\n",
+        "      (\n",
+        "        SELECT\n",
+        "          sum(premium * months_active) AS total_premium\n",
+        "        FROM\n",
+        "          (\n",
+        "            SELECT\n",
+        "              pol_eff_date,\n",
+        "              pol_expiry_date,\n",
+        "              premium,\n",
+        "              round(months_between(pol_expiry_date, pol_eff_date), 0) AS months_active\n",
+        "            FROM\n",
+        "              `claims_catalog`.`02_silver`.policy\n",
+        "            WHERE\n",
+        "              pol_issue_date BETWEEN date(:start_date)\n",
+        "              AND date(:end_date)\n",
+        "          )\n",
+        "        WHERE\n",
+        "          months_active > 0\n",
+        "      ) curr\n",
+        "      JOIN (\n",
+        "        SELECT\n",
+        "          sum(premium * months_active) AS total_premium\n",
+        "        FROM\n",
+        "          (\n",
+        "            SELECT\n",
+        "              pol_eff_date,\n",
+        "              pol_expiry_date,\n",
+        "              premium,\n",
+        "              round(months_between(pol_expiry_date, pol_eff_date), 0) AS months_active\n",
+        "            FROM\n",
+        "              `claims_catalog`.`02_silver`.policy\n",
+        "            WHERE\n",
+        "              pol_issue_date BETWEEN date_sub(\n",
+        "                date(:start_date),\n",
+        "                datediff(date(:end_date), date(:start_date))\n",
+        "              )\n",
+        "              AND date_sub(\n",
+        "                date(:end_date),\n",
+        "                datediff(date(:end_date), date(:start_date))\n",
+        "              )\n",
+        "          )\n",
+        "        WHERE\n",
+        "          months_active > 0\n",
+        "      ) prev\n",
+        "  ) p\n",
+        "  JOIN (\n",
+        "    SELECT\n",
+        "      round(curr.total_claims, 0) AS total_claims\n",
+        "    FROM\n",
+        "      (\n",
+        "        SELECT\n",
+        "          sum(property) + sum(vehicle) AS total_claims\n",
+        "        FROM\n",
+        "          `claims_catalog`.`02_silver`.claim\n",
+        "        WHERE\n",
+        "          claim_date BETWEEN date(:start_date)\n",
+        "          AND date(:end_date)\n",
+        "      ) curr\n",
+        "  ) c;"
+      ],
+      "parameters": [
+        {
+          "displayName": "start_date",
+          "keyword": "start_date",
+          "dataType": "DATE",
+          "defaultSelection": {
+            "values": {
+              "dataType": "DATE",
+              "values": [
+                {
+                  "value": "2015-01-01"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "displayName": "end_date",
+          "keyword": "end_date",
+          "dataType": "DATE",
+          "defaultSelection": {
+            "values": {
+              "dataType": "DATE",
+              "values": [
+                {
+                  "value": "2021-05-01"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "e932870b",
+      "displayName": "Claim - driverAge",
+      "queryLines": [
+        "SELECT\n",
+        "  CAST(CAST(driver_age AS DOUBLE) AS INT) AS driver_age,\n",
+        "  COUNT(*) as total\n",
+        "FROM claims_catalog.`03_gold`.customer_claim_policy_telematics\n",
+        "WHERE\n",
+        "  CAST(CAST(driver_age AS DOUBLE) AS INT) >= 14\n",
+        "  AND CAST(CAST(driver_age AS DOUBLE) AS INT) < 110\n",
+        "GROUP BY\n",
+        "  CAST(CAST(driver_age AS DOUBLE) AS INT)\n",
+        "ORDER BY\n",
+        "  CAST(CAST(driver_age AS DOUBLE) AS INT);\n"
+      ]
+    },
+    {
+      "name": "48b7de84",
+      "displayName": "Claim - geo",
+      "queryLines": [
+        "select\n",
+        "  *\n",
+        "from\n",
+        "  `claims_catalog`.`03_gold`.customer_claim_policy_telematics;"
+      ]
+    },
+    {
+      "name": "ba40e7fe",
+      "displayName": "Claims - loss_ratio",
+      "queryLines": [
+        "SELECT\n",
+        "  round(c.total_claims / p.total_premium, 2) AS loss_ratio\n",
+        "FROM\n",
+        "  (\n",
+        "    SELECT\n",
+        "      round(curr.total_premium, 0) as total_premium\n",
+        "    FROM\n",
+        "      (\n",
+        "        SELECT\n",
+        "          sum(premium * months_active) AS total_premium\n",
+        "        FROM\n",
+        "          (\n",
+        "            SELECT\n",
+        "              pol_eff_date,\n",
+        "              pol_expiry_date,\n",
+        "              premium,\n",
+        "              round(months_between(pol_expiry_date, pol_eff_date), 0) AS months_active\n",
+        "            FROM\n",
+        "              `claims_catalog`.`02_silver`.policy\n",
+        "            WHERE\n",
+        "              pol_issue_date BETWEEN :start_date\n",
+        "              AND :end_date\n",
+        "          )\n",
+        "        WHERE\n",
+        "          months_active > 0\n",
+        "      ) curr\n",
+        "      JOIN (\n",
+        "        SELECT\n",
+        "          sum(premium * months_active) AS total_premium\n",
+        "        FROM\n",
+        "          (\n",
+        "            SELECT\n",
+        "              pol_eff_date,\n",
+        "              pol_expiry_date,\n",
+        "              premium,\n",
+        "              round(months_between(pol_expiry_date, pol_eff_date), 0) AS months_active\n",
+        "            FROM\n",
+        "              `claims_catalog`.`02_silver`.policy\n",
+        "            WHERE\n",
+        "              pol_issue_date BETWEEN date_sub(\n",
+        "                :start_date,\n",
+        "                datediff(:end_date, :start_date)\n",
+        "              )\n",
+        "              AND date_sub(\n",
+        "                :end_date,\n",
+        "                datediff(:end_date, :start_date)\n",
+        "              )\n",
+        "          )\n",
+        "        WHERE\n",
+        "          months_active > 0\n",
+        "      ) prev\n",
+        "  ) p\n",
+        "  JOIN (\n",
+        "    SELECT\n",
+        "      round(curr.total_claims, 0) AS total_claims\n",
+        "    FROM\n",
+        "      (\n",
+        "        SELECT\n",
+        "          sum(total) AS total_claims\n",
+        "        FROM\n",
+        "          `claims_catalog`.`02_silver`.claim\n",
+        "        WHERE\n",
+        "          claim_date BETWEEN :start_date\n",
+        "          AND :end_date\n",
+        "      ) curr\n",
+        "  ) c;"
+      ],
+      "parameters": [
+        {
+          "displayName": "start_date",
+          "keyword": "start_date",
+          "dataType": "DATE",
+          "defaultSelection": {
+            "values": {
+              "dataType": "DATE",
+              "values": [
+                {
+                  "value": "2015-01-01"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "displayName": "end_date",
+          "keyword": "end_date",
+          "dataType": "DATE",
+          "defaultSelection": {
+            "values": {
+              "dataType": "DATE",
+              "values": [
+                {
+                  "value": "2021-05-01"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "eb80eff8",
+      "displayName": "Claims - Damage - Property vs Liability vs Event Type",
+      "queryLines": [
+        "select\n",
+        "  'liability damage' as type,\n",
+        "  incident_type,\n",
+        "  sum(injury) as amount\n",
+        "from\n",
+        "  `claims_catalog`.`03_gold`.customer_claim_policy_telematics\n",
+        "where\n",
+        "  to_date(claim_date) >= :start_date\n",
+        "  and to_date(claim_date) <= :end_date\n",
+        "group by\n",
+        "  incident_type\n",
+        "UNION\n",
+        "select\n",
+        "  'property damage' as type,\n",
+        "  incident_type,\n",
+        "  sum(property) + sum(vehicle) as amount\n",
+        "from\n",
+        "  `claims_catalog`.`03_gold`.customer_claim_policy_telematics\n",
+        "where\n",
+        "  to_date(claim_date) >= :start_date\n",
+        "  and to_date(claim_date) <= :end_date\n",
+        "group by\n",
+        "  incident_type"
+      ],
+      "parameters": [
+        {
+          "displayName": "start_date",
+          "keyword": "start_date",
+          "dataType": "DATE",
+          "defaultSelection": {
+            "values": {
+              "dataType": "DATE",
+              "values": [
+                {
+                  "value": "2015-01-01"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "displayName": "end_date",
+          "keyword": "end_date",
+          "dataType": "DATE",
+          "defaultSelection": {
+            "values": {
+              "dataType": "DATE",
+              "values": [
+                {
+                  "value": "2021-05-01"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "pages": [
+    {
+      "name": "cf31fb25",
+      "displayName": "Analysis",
+      "layout": [
+        {
+          "widget": {
+            "name": "e9c687b2",
+            "multilineTextboxSpec": {
+              "lines": [
+                "# ![](data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAgAAAAIACAYAAAD0eNT6AAAABHNCSVQICAgIfAhkiAAAAAlwSFlzAAAOxAAADsQBlSsOGwAAABl0RVh0U29mdHdhcmUAd3d3Lmlua3NjYXBlLm9yZ5vuPBoAACAASURBVHic7N15fN1Vnf/x193vzb4nbdMsbenCUkBRQVAWEUHEcRc3xhHZBNSfywgzo8KobKIjCgJuM+M47o6iyKAiCgIOgqAgZW2ztWn2pNlvtvv745u0SZO2yT3n3u/33vt+Ph730dvcfM/9pIR7Pt+zfA6IiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIgs9nEgYfD4SvpDFhHb/G4HICJpV2t4/ZCVKETEVUoARHLPFsPrlQCIZAElACK5pRQ42bCNJhuBiIi7lACI5JZzgbBhGy/YCERERETSowToxGwB4ASQl+7ARUREJHlfx6zzTwAPpT1qERERSdqnMO/8E8Dn0h24iIiIJOdC7HT+CeDYNMcuIiIiSXgtMImdzv/pNMcuIiIiSdiIs2ff1t3/h9IbvoiIiKxUCPg/7HX+vUBBWn8CERERWbGrsNf5J4Ar0xq9iIiIrNhaYAR7nf92IJrWn0BERERW7LvYvfs/O73hi4iIyEo1AlPY6/xvSW/4IiIi3vVxzDrVr6QwtpsMY5v/eByIpTBWEXGRDgMSWblaw+tTdZxuCHi3pbZ2Aa8Hxiy1JyIeowRAZOW2GF6fqgTgDKDMQjv9wJlAm4W2REREskIpEMdsaP3cFMX2DcO4EsAwcHyK4hMREclYl2DeyR6XotiesxDbu1IUm4iISMYqATox62AngLwUxFZtGFcCuB/wpSA2ERGRjPZ1zDvZh1IU26kWYjstRbGJiIhkrE9h3sEmgM+lKD7TI387gECKYhMREclIpp3r/MexKYrxasO4vp2iuETEo7QNUOTgXou9anjP4BTXSQXTk/qabQQhIplDCYDIgW0EfgAELbV3m6V2lmJasa/TShQikjGUAIgsLYQzLG56Zz2nD/impbaWMml4fbGVKEQkYygBEFnaPwMvs9jejThFdlLFtO01VqIQERHJYGuBEewt/NsORFMc8/8zjPGxFMcnIiLied/FXuefAM5OQ8yvtxDnhjTEKSIi4kmNwBT2On9bOwgOZZOFWL+YplhFREQ85ybsdf6PY746f7l8QI9hvJPAkWmKV0RExDNCQC92Ov+dOGsJ0ukOC3E/ChSmOW4RERFXnY2dzr8Pd+6kbZxUmADuJfWLFkVERDzjG5h3nsPA8ekOfFYlzjC+jSTgh2ibsIiI5IjnMO8435X2qBe6C/OfYe7x+TTHLiIiknbVmHeY9+MsxnPTa7CXACSAt6U3fBERkfQ6FfPO8rS0R72YD/gr9hKAXqA2rT+BiIhIGpke+dsBBNIe9dJejd1RgP9Jb/gikg5a5CPiMK2F/2tg2kYgFvwGZy2ALW8EzrDYnoh4gBIAEYfpqX/NNoKw6DJgj8X2PmexLRHxACUAIg7Tin2dVqKwpwknCbDlOJx1EiKSJZQAiDgmDa8vthKFXd8BbrXY3octtiUiLlMCIOIYNrzedA1BqlwO/MxSW2cB5ZbaEhGXKQEQcfQYXn+ClSjsmwbeDfzRQlsh4E0W2hEREfGM12O+XW5D2qNevlLgScx/xp+kO3AREZFU2oR55/jFtEe9MscAU5j9jF24X+1QRETEGh/ONIBJ5ziJO6cArsStZPdIh4iIyIrdgXnn+ChQmO7AV+AIzH/Gs9IetYhYp0WAIvvcbaGNF+MkElELbaXCU8A2wzYOsxGIiLhLCYDIPj/GmSM3dSrwbbz7/9dDhtdrK6BIFvDqB5SIG7px6ujb8Fbgektt2bbL8HrTsski4gFKAEQWusliWx8D3maxPVv6Da/36vSGiKyAEgCRhX4NPGGxvVuBWovt2bDa8PoRK1GIiKuUAIgslMC5c7elDPiyxfZsqDO83rRssoiIiGf9EvPtcvMfZ6Q3/AMK4hTzMflZ3pf2qEVERNKkERjAXgLwSHrDP6AzMP9ZTk571CIiImn0buyOApya3vAX8QEPYPYzzACV6Q5cREQk3b6KvQTgjjTHvr/zMP8Znkl71CIiIi4IAD/FTgIwgXtFdE7AWbxn+jN8Ld2Bi4iIuCUfp3qejSTggjTHDk79/94k493/8do0xy4iIuKqUuBJzDvQn6Q57tVAi4W4E0AfEE5v+CIiIu47BuesAJNOtAtnMV465AF/NYx3/sNmlUQREZGMcivmHemGNMV6u4VY5x5TwPo0xS0iIuI5R2DemZ6Vhjj/zkKc8x/fSUPMIiIinvYUZp3pB1McXwxoMoxx/mMUqE9xzCKSZjoLQGTlHjK8PtVbAf8RaLDY3g04CwlFJIsoARBZuV2G1xdYiWJphcCHLbb3Z+Aai+2JiEcoARBZuX7D66NWoljaBUCJpbaGgXfiFDASkSyjBEBk5VYbXj9iJYqlXWSpnWmcsxCes9SeiHiMEgCRlaszvH7YShSLvQTYaKmty3H/7AIRERHPCOIU8zFZVf++FMV2g2Fcc4+rUhSfiIhIxjoD8w725BTF9oiF2L6eothEREQylg94ALMOdgaoTEFshcCkYWwdQHEKYhMREclo52F+h/1MimI73kJsl6QoNhERkYx1As7iPdNO9mspiu89hnFNAGUpik1EPEi7AEQO7QjgTiDfQls/s9DGUhoMr78X57hfEckRSgBEDm41cBd27o77gXsstLOUQsPrt1mJQkQyhhIAkQPLA/4X833/c/6L1FXVyzO83rS8sYiISNa4HfM5/7nHFLA+veGLiIjISv0d9jr/BPCd9IYvIiIiKxUDmrDX+Y8C9Wn9CURERGTFPo3du/+r0hq9iIiIrFghzmp9W53/o0A4rT+BiIiIrNhHsNf5D2HvdD4RERFJoWext+r/79Icu4iIiCThJdi7+1ddfRERkQxxA1r0JyIiknMewbzz/3raoxYREZGkFQKTmHX+HUBxugMXERGR5B2P5v1FJIfoMCARx2GG108CP7ARiIhIOigBEHE0GF5/L9BnIQ4RkbRQAiDiKDS8fpuVKERE0kQJgIgjz/D6XVaiEBERERERERERERERERERERERERERERERERERERERERERERFx2VbgZuAZnPr6cZwqezfPviYHdzRwC/A0zr/d5OzzrwBHuRiXiIjIkmLA7cAMBz5tbxr4KhBxKUYviwK3ceh/v1tnv1dERMR1MeD3LP/Y3d8DBS7E6VUFwH0s/9/vXpQEiIiIB9zK8juvuccfUBIAzr/BH1j5v98tbgQrIiIy52icoemVdmBKApLv/OemA7QmQEREXHMLyXVguZ4EmHT+c4+vpD1qERGRWU9j1onlYhJgo/NPAE+lO3AREZE5Y5h3ZAngQaAwzbG7IR/4HXb+zUbTHLuIiMheNjqyXEkCbHb+cw8RERFX2OzMsjkJSEXnrwRARERcY7tDy8YkIFWdvxIAERFxTSo6tWxKAlLZ+SsBEBER16SqY8uGJCDVnb8SABERcU0qO7dMTgLS0fkrARAREdekuoPLxCQgXZ2/EgAREXFNOjq5TEoC0tn5KwEQERHXpKujy4QkIN2dvxIAERFxTTo7Oy8nAW50/koARETENenu8LyYBLjV+SsBEBER17jR6XkpCXCz81cCICIirnGr4/NCEuB2568EQEREXONm5+dmEuCFzl8JgIiIuMbtDtCNJMArnb8SABERcY3bHWC6kwAvdf5KAERExDVud4DpTAK81vkrARAREde43QGmKwnwYuevBEBERFzjdgeYjiTAq52/EgAREXGNUQd20oZgqjrGPwAFFn6+gtm2rMdo6WcXERFxhVEHNnxTSeKUjSlLAkxHAlJ253/i+mBi8EslSgBEJGl+twMQMZEf8XHnpQWcsjGYiuZfDtxNcklAPnAncIrNgABOXB/kfy8voDDqs920iOQQJQCS8TyYBKjzFxHPUwIgWcFDSYA6fxHJCEoAJGt4IAlQ5y8iGUMJgGQVF5MAdf4iklGUAEjWcSEJUOcvIhlHCYBkpTQmAer8RSQjKQGQrJUf8fGLSws4aUPKkoC7cBKBU2w3ftKGIHd/UJ2/iKSOEgDJagURH3dfnrKRgJNmH1aduD7IXZcVUBBR5y8iqaMEQLJeiqcDrNKwv4ikixIAyQmZkASo8xeRdFICkHuOBm4BngZGSU0NfU/Wok/xmgAjLs75u/3f/1CPUZzf1ZuBrSn6NxDJSUoAckcMuBV4DPgAsHn2azmlIOLjfy/3VhJw0gbnzl9z/kuK4fyuXgo8DnwViLoakUiWUAKQG2LA/wIXo//mnkoC1PmviB+4BGf3Rc4lryK25XxnkCP+DTjZ7SC8xAtJgDr/pJ0KfMHtIEQyna0E4B+A1wDrAfdvq2S+rcCFbgfhRW4mAer8jV0EHOV2ECKZzMYnXwT4BvuSiSmgFdixxGNu4Zmkz0WAepkDmKsT8Lpbhvn9c1NpeU/t87fCD1wAfNDtQEQylY0EYD0LRxKCwLrZx1L6gW3AUyxMDp4Fhi3EIwu9yu0AvG5ud8BZXxnmgRdSmwTozt8q/W6LGLCRAGxY4feXAifOPvbXz76EYH6S8DwwaBBjLmtwO4BMMDcdkMokQJ2/dfVuByCSydxIAA6mFHjx7GN/85OD+UnC34ABizFIhrC9Zz6VSUCqOv/CqI+h8bSWUxCRLGFrCiAdVpoczH/ksh3AFreDSIX6MvubWFKRBKTyzn9tqZ9tu6ett5shmt0OQCSTeW0EIFkHSw4GgO0snRg0keZqdC64lyxNAF69JZSSdm0mAake9n/1lmAuJwC/dTsAkUxm41NpOwde8Od1cWAXSy9KbAZmXIvMnq04FdSyquZDwA9PfLKIw1cFUvYew/GEURKQjjn/v7VPc8xnB5nOht/UlZnB+d1+yu1ARDKV6SdTCJ9/nMRMVnUus8aAF+Y9ts973kZmJQdfxamgljU+eFqEm96Wl/L3STYJSOeCv8u+P8otv4+n/H085mbgcreDELEkAlQCNUDV7PNqoAzn5q149vsKgF6gB+gGOoFf4tzMrpjpp9NGnO17uWYSJwlYalrhKWDcvdCWFAF+DbzS7UBsOH1LiLsuKyCUupv/BYbjCc5ZQZ2AUzYG+cWl6VvtPzEFr715iN8+k546Bh5wH07hsZzLeiSjxHCmp1cBqw/xvJrkRmmngTxgIpkATT+hXouTfcg+Xi2EVIBzHsBJLr2/sYAfLj0lwo1vzktb5z9nYgo++uNRbr0/fsDh9oAfPnCyE184zcUFlxNflngAOAvVDBF3lHLoznwVUAuE0xDPDgwW4psmAJcDXzZsI5dM4yQH86cUngeeID0rmjMuCSiI+Ggo93PG4SHOPzGc0jn/5di2e5qvPxDnnqenaO51etrGCj+v2hzkwldE2FLjbnxPtU/zzQcn+M3TkzT3zjAcz6o1rur8xbYinGH3ytnHKpwh+IrZr1fPfr0KZzjea34DnJHsxaYJwE2oFKctfThH9T6GM8T5W1IzxJkP3AmcYrvhl68PcvflrpxpLx4wEk+ksqTygzid/1AqGpesEWRfZ77/fHr1Es8z/WjpW3GOd0+K6Sf1L3GmAcS+IZy79Z/i/Dvb/OBTEiBWqfOXFCrgwJ15FQvv4CtditEtHwW+mOzFpp/Sz+IsBJTUGgK+h3Os7zOW2lQSIFao85ckzJ9LP9h8+mqgxKUYM8HrgV8ke7HJJ3QAZ0FbOhY6iGMGuAO4DviThfaUBIgRdf4yK4+Fd+P735mvYuFdejZuHXfD4TiLy5Ni8ukcAy6veeU7rx/vamasq4V4/25IZPcSZI9IAN8BrgDaDdtSEiBJUeef1Xws7LDnd+BLDcfnuxNm7vJBIuEkXklvOzf+ZH7F11r3LjOemZpgvLuFsa5mnKSg2fl7dzPx3l0kZnK2ZGmqDAPXAl/AbMGgkgBZEXX+GSnG8hfHVeKM8opH1RdEaRkeN/pgtZoAHExieop4XzvjPa2Md7cy1tPCeHcr4z2tjLY/z8yk12rnZJTHgHcAzxm0oSRAlkWdv6fEWDhnfrD59BrslH8XDzh9dRn3tPdlRgJwKBMDnYzufn5RcjDWsZ3puFu1czLKMM6K0K8ZtKEkQA5KnX/KRYByDt2Zp7PYjHjQxZvXcNszu4w+UNNcr+zAwiXVhEuqF59bl5gh3r+bsa4WZ1qhu3nvNMNYVzMzE2OuxOtBBcDtwEtx6v5PJtHGCPA6UpAEPLR9ijO/MqwkIIOp809aCctbHFfDvprvIge1vtD8LBTPJAAH5PMTKVtDpGwNbH75openRvfsHS0Y725lpP1ZZyShq5mpsWz8LDmk83E+SN5GcmWHlQTIIur8F/FaSVjJMRuKYsZteD8BOIRgXjEF9UdRUH/Uotcmh3r2jRzMjR50NTPW3cLUyIAL0abN2TiH/5wD9Cdx/cjstdbLBj+0fYofPTbB+14esdmspJDpsciH4JXyvjFgLUuvdF/qhDYRVykBOIRQYQWhwgqK1r940WtTIwP7koLuFsY6mxjvcnYsTA71uhCtdScCvwdOBpLJdoaBM7E8EnDV62Lq/DPIyOxJiCnq/B/EqSSazs4/CLwEOA44FjgKqCf3KshJBvMB64tyYQogRYL5JRQ2HkNh4zGLXpseH967xmBuxGBu/cHEQKcL0SZtK/A/OB15MsdFWp0OuOp1MT79ukwvvZ07smjYvwx4E07VtJNxDoAR8ZTCUICaWISqWIjKaJiaWJiqaJjKaJhwwEc04CeRgJ74JGNT08QC5rWUcjYBOJhAtICCuiMpqDty0WvT8dF9tQ66nQJIc396tBDSqcC3gPfgFBBaKStJgDr/zJIFnb8fZ3ThIuA1QCiF7yWySMDnozI625nnhamOhqmIhqiOhamJRfa+tirP6eSjFjr0lVICsEKBSB75tVvIr91/u8KBCiE5IwguF0J6F8650Z9K8nqjJECdf2bJ8M4/ClwIfBhoTNF7SI7KDwaojoWpjoWpjIaoioapyYvsex5zOvPK2bt4ry91VgJgkT8YJm/VYeStOmzRa4mpScZ72/ZVR+zcwXDbNkbatjEdH0lHeP8M/G72kYykkgB1/pklgzv/IE7H/0/AmhS0L1nIP+8uvSoa2tuZV0bDrJrrzGe/XhUNkRfMruKInikElLMSMwy3PkXP43fT+/jdjO5+PpXv1gocTXKLAuespFjQVYnbSsdxDi8Sj8vgzv8U4Ms4C/okx8UCfqpiYVbN68z3zaeH5t3BO3/3+7x+n35gvm/9NjsqAYpjz7N/ZNdvv0XvX3+TqvUE38WZEjCxnCTgKuBqgMRtpZ9ASYCnZWjnX4BzDsYFqMRtVpvrrOfPmVdGQ07HPtuZV8ecefaCUHbdpR+MEoAsNdzyJNt/8GkGX3g0Fc2/GWd3gIkCDlwn4GqcBGAvJQHe9q2H4pz/7ZSU3E7VPv+XAt8D1lluV9IgGvDvuzOPLb4z3zef7nT6Qb/yu6UoAchmiQQdD/6AHT+4yvZ5CLtwii6b3pEtNRJwFbN3/vtTEuBt1/9qnCt+arW0dqru/C/EGfJXQQkPKYuE9lsct3RnviovQmEO3aWnkicSgMmRfkL5paZNyQGMdmznma99gJGdT9ts9iacldKm5icBV3GAzn+OkgBvs5gEpKLz9+P83l5msU05gLDfv/jOPBZatIVtbq96SHfpaed+AnB7c+LByzZBIkG4tMZZBb96I7GKeqKVdUQr6ohW1IIv/Xscs8l0fISnb72Q/m1/sNYkzjDqYxbaKgDeCvz7cr5ZSYC3XXXnGFffaXQ8dyqG/cPAfwLnWmwz50QDfkojIVbnhVkVi1AaCbI6L7Lk85pYOKMXyOUC1xOAl173x8SfrjjhoN/jD0WJVTUQrWogVlnv/FnVQLSynmjZaiUHyzQzGefp2y6i78l7bTX5CHACTjKQVkoCvM1gJCAVd/4h4Cc451PIPCG/b++CuCVXvc8ujJsbmo+4UGxGUsc0ATCuAzDW1XLI75mZHGdk1zOM7Hpm0Wv+YJhoxdp5ScG85KCiFp9fpQrm+EMRtlx0K0984e0MNf3FRpMvwTk6+GYbja2E7+L+6xO3lYKSAE/6xGuc2g0rTAJS0fkHcXau5EznXxAKsGreMPtcFbmlhuAroipwKMkzHgE47N3XJZ7/zhU2YlnEFwgSLa+dTQrqnT+rG4lW1hOrqMMXzM1f/smhHh7/3OuI97XbaG4PcDhgpTHJOssdqUnVgr+vkOFz/vNLwh6yilwsbKXGu+QG90cAuptNmzigxPTU3kN5+p9a/Howr5i81YvXHMRq1hGI5KcsLreFCivYdP6XefILb7dRXrgY+Dfg7eaRSRa6fvbPgyUBqer8z8ejnf/cXHppeHbePC9MaTi05PMqbWMTjzL+rSw/9sxE7+N324jFHp+PSEnNwjUHe0cR6glEC9yO0IqmH32Wnb/5mq3mzgI89h9SPORAIwGp6vyPB+4njYf4RAJ+1hfGqD5IFblsLQkrmcn1RYD5tVsSlrenpVyoqILYbFIwt/Zgbt1BMK/Y7fCWbWZijD9fdTrjPW02mtsBHAlY3QguWWX/JCBVnX8x8DgpPsxnQ1GMc9ZWctrqUraU5NNQECWgVe+SASZmZvDhI/wf97qaAPj84ejUzMR41kxahfJLF+xSmJ8chArL3Q5vkb4n7+Wpr7zXVnPX4BwaJHIgc0lAKmv7/ydwXgrapTAU4P0b13DBptVsKcneaULJPEOT0+wejdM9PkH3+CS7x+J0j0/SPT5Bx+gEnWPO17vGJ+iLT/Kdk4/g3fc95WoCsBqnqlxOCMYKFyYH80YQwsVVrsX19O0X0/Pnu2w0NQEcC2yz0ZhkrX8AfoT98r4ArwJ+g+Xa/sXhIJ84qp6LN9dSGtHOIkm96URiQQfeNduxd45N0DHbuXeNTdAxNkH3+ATj0ys7++WLLzuMjzz8vKsJwCuB+wzbyAqBSN6CLYyxqn1rDyKlqyCFQ4sTAx08+qnTmB638nl8P05VP5V4lnQLA38DFp+nbeAN9ZXcfMIm1uSpcrCYGZ2anu3AJ/Z27s5d++zz2c68e8z5eyo/RK/Y2sB1TzS7ugtgg+H1WWM6PsrIzm2M7Fx88+wPRfZOJ+z700kWImWr8fnNFhSFS2poeMPH2f79Txu1M+uVwHtZZlU/EYsuxmLnnx8M8K1XbOFtjdW2mpQs1DWvw97bgY9P0jEaX3DX3jk2wchU2mumHVDnWNy4DdPb0muAK42jyGG+QJBI2WqnZHJl3YLtjHmrD8Mfii6vocQMf7nujQw1PW4jrF6cw4K6bTQmsgwFwAuAld56dV6En59+NC+uKLTRnGSQ+PQMvfFJ+uNT7B6L0z4apz8+Rf/EJLtHJ5y/zz5vGxlnciYzBzvPXlvBL9t6XB0BWG94fc5LTE8x3t3KeHcr7LeZwucPEilfvW+twd4yyo1EK+vwB8Pzv5kN7/wsf7n29TZqA5Tj7P9+n2lDIst0MZY6/8NL8rnnzGNZpSH/rNEfn6JzfPG8edfY5N75dGc4foLBySm3w02LrrEJ4zZMRwD+DLzIOApZOZ+fSOmqeWsNnEqJnQ/+wNZZAQmctQD322hM5CBCwHZgrWlDtfkRHnrdcazNX+bImbhiciaxb7X7gjn0OF2zw/Fzw+7d45NMzKxsgVwuqC+I0jI87uoiwD1AkWEb4l3bcHYFmKeaIgd2LvA900ZKwkH+cPaLObI0Owp9ZZrhyenFW9fGF9+pd41N0BufdDvcjBcJ+BPx6RmjLfgmUwAFwNMlpaUvG+jvN4lBvOtw4GM4az1EUuUDNhq57cTN6vwtmpm3jW3+yveuedvY9i6cG5tgbIXb2MRMfHrGh3MDPphsG8Z70/765N8S8XicnW1tbN+xnZ07d7KrbSc7d+5k5842du3aRSKRmYssBHAqAx6FM0QrYtvhwBInfazMueuq+d4pR1oIJ7uNT8/Qt8QCucXPnTv3qQxdIJdDDsNZPJsUKxUxIpEI6zdsYP2GxbsCR0dHaWttpbW1lba2uT/baGttpaurS8mB98Vwjgs+y+1AJCtdatpARTTEzSdsshFLRpqbS+8ed+7Su8YWbl2bfwfvpW1sYkUVbicAB5OXl8emzZvZtHnzotcmJyfp7Oxk5862vSMHL2x/gR3bt9Pe3s6MFn54xZnA24Afuh2IZJUC4N2mjXz0yDrKI9lzNPj8bWxLbV3Llm1sYoXRzhlXa2KGQiFqa2upra1d9NrU1BQdHR0LkoO5aYXt27cTj5sXQZAVuQn4NTDgdiCSNd6D4SLiskiIS7cYbx5IubHpGfrjB+/MnedTdI5NMKORUVkeoxr0ni2KHQwGD5octLe3O1MLba384o47eOop42lEObga4DPA5W4HIlnjItMGPnj4WgpD6T+ad2r+Nrb9t66NO4viOsf3bWOLa4GcpEZ2JgAHEwwGqauro66ujhOBRx95RAlAelwCfBt4xO1AJOO9HDjapIGw389Fm9dYCufAJmcS/KFzgPs7+nm4e5Bn94zSNjKuBXLiBbmXAOyvrbXV6Po1a9YwMDDAyMiIpYiyVgC4DXgpoNVEYuIS0wbeWF9JTSx86G9M0sPdg3z92V38pLmLgYncqC4nmSMvL4/R0VGjNjI+AUgkErS1tRm18Y1vfoujjz6arq4umpubaGpqprmpieYW58+mpmYGB/dYijjjvQi4DGdNgEgyKoC3mjZyyZbU3P3/tr2Pqx9v4g+dWu4i6RMIBCgvL6e8vJyKykoqKyqd5xUVVFVVUTb7WlVVFRUVFUSjUVavqjGaks34BKC3p8c4C2psbACgqqqKqqoqXvrSly36nr6+Ppqbm2cThCaam/Y97+vrM3r/DPQZ4CfATrcDkYz0PsCoUP/hJfmcXFNqKRxH28g4H/q/5/hp8Ss0jwAAIABJREFUi87AEjvy8/OpnO2wy8vLqSh3OvO5jr5y3vPy8nJ8KTw2fikZnwC0tpkN/5eVlVFUVLys7ysrK+NFL1p89MHg4B6am1uc0YLmJmf0oLmZpqYmurq6jOLzqELgS8Bb3A5EMo4fuNC0kUs2L14cbOKHTZ1c9OAzGuqXpP3937+X0171KsrLy6murqa8vJxo1NtnUmR8AmA6/N/Y2GgcQ1FRMVu3bmXr1q2LXhsZGaGluXk2MXD+bJlNDnbv3p3JhZDeDJwN/NLtQCSjnIHhKaIFoQDv2VBjJZiZRIIrH93ODU+2WGlPMlNJSQmTU1OMDA8n3camzZt59atfbTGq1Mv8BMBwAWB9fYOdQA4gPz+fw484gsOPOGLRa/F43JlW2DtysC9B2LVrF9PTnl9ndzPwO8BsDkZyifHiv3euq6E4bP7RNZ1IcN792/ju9g7jtsRbQqEQpaWllJdXUFFRQWlZKaWlpVRWVlJaWkZpaSkVlZWUlZZSWlZGMBjkpi99iW998xtJv2dvT4/FnyA9Mj4BaDVMAGyMACQrEomwadMmNm1aXMZ0cnKS1tbW2fUG+xKE5pZmdra1MTnpidO0GoBPAVe4HIdkhjqcUSMjNhb/zSQSvOe+p/jejk7jtiQ98gsKqKyooLSsbHFnXlFBWXkZpaVllJeXU1S08vpSZWVlRvF1d2fe2pGMTwBMRwAaGhusxGFbKBRi/fr1rF+/9GhpZ0cHzz33HC2tLbS0tNDa4vz5wgsvGC+KXKGP4hzl+td0vqlkpItwtpIm7eVVxRxTVmgcyJWPblfn7wFFRUVUVFZSVFREVWUVFZUVFBUVU1RURGWVsxK+qKiImpoa8gtSe9JjWblZAtCjEYD0Mx0BaGhwbwTARHVNDdU1Nbxiv6/PzMzQ3t6+aBtjc7OzMHFsbMx2KEHgFuAVQMYuaJCUC+Gs/jdysYXFfz9u7tKcf4rEYrG9K9pLy8r2PS91FlHPH3YvLbW7i8NUeXm50fVKANKsv7+fYYNFG+DuFEAq+P3+vSWUT3rF/ukBdHTspqmpmZbmZh566CF+/OMf2XjbE4HzgeQn0CTbvQmnnHTSKqIh3tpoVPiMnSNxLnzwaaM2conP56N0tsMuKyujsqJydj69bHYIvpTSstkh+DLvr3o/mLIyJQAZxfTuv6io2HjeJ9PU1KyipmYVJ5xwAm97+9tpatrBn//8ZxtNXw/8HMjKfY9izHjx3/kbVxMN+I3a+PDDz9Efz+2tfpFIhMKiov2G3YuorKraO+Q+9/eamhqCwYzuJpbNtC/o6dEagLTaabwFsMFGGBnL7/fzuWuu5ezXnmVjx0EZ8Hng780jkyyzBXilSQN+n48LN5kt/ruvo5+fNGdnflpSUkJZ2b5FcM4QfCllZeWUV5RTNm8IPi8vz+1wPam0tBS/35/0MfSDg4NMTEwQDqeuPLVtGZ0AGM//Z9nwfzK2bt3Ke//hH/jmN6yM3p8H/Cdwr43GJGt8ADAqcXbmmjLWFcaMgvj0Y01G16fbgRbIzV8cV1lVRXV1NaFQyO1wM14gEKCouJiB/v6k2+jp6WH16tUWo0qtjE4ATHcANGboAkDbPvGJK/jlnb+ko2O3jea+inPKW9xGY5Lx8oF3mzZiuvjvkZ5B7utI/oPdhvyCAirKnT3pZaVlVFQ68+a2trGJubKyMiUAmcK0DHB9Q4OdQDJcQUEBn/nsZ7jg/e+30dwm4B9xzgsQeSdQYtJAfUGU1641W6D1jWfbja4/kLlV7eXl5ZSVzw61VzhD8HPD7uUVFZSWlhKJGB1/IGlQVlbGju3bk74+0xYCZnQCYF4GuMFGGFnh7LNfx+mnn84999xjo7l/Ar4PPG+jMcloF5s2cOGmNQQMDkmZmknwY0tz/z6fj9Ne9Sre9OY3c+yxLyI/P99Ku+INuVYMKGMTgKGhIaOhGsjcGgCp8rlrruXBBx+0USsgilMb4AzzqCSDvQzn+Oikhf1+zt9oNqT6YNcAfXHzypkVlZVcf8PnOe6444zbEm8qL68wuj7TygGb7alxUWuLWSGP/Px8KisrLUWTHdauXctHPvJRW829GniHrcYkI33AtIE3N1RSHTNbVf373QOmYVBZVcW3/+s76vyznPlWQCUAaWE6/N/Q0Jj2s5czwYUXXcSWLVtsNfdFDOd/JWOVA281bcRG5b9HewaNrvf5fFx33fWsWWN+BoF4m2k54EybAsjYBMD8EKAGG2FknVAoxHXXX4/fb+VXowa4xkZDknHeCxjt2zuiNJ9X1pjnj3/tM6sWeuppp3HcS15iHId4n0YAMkSb4Q4A1QA4sJe85KW84x3vtNXcRcDxthqTjODD+e9u5BILd/+Dk1PsHBk3auNNb36zcRySGXKtHHDGJgDGRYDqG+wEkqX++V/+hYoKswUxs/zAbWTwglOPaQSuBh4AOoFdwB9mv9bgXlgLnA4cZtJAQSjAezYYHR0AwLb+EaMTqvx+Py960YuN45DMYDwC0KsEIC1MywBrBODgSkpK+NSnP22ruaOBD9pqLEfFgOuAp4FP4RzAVAWsBk6a/dozwL9ieOSuBcZb/969voaikHnOuG1gxOj62tpabfXLIaYnAvb19pJIZM6hqBmZAIyMjBgPtWTbKYCp8OY3v4WTTjrJVnNXA2ttNZZjTgAeBz4BHKyaTAT4JPDTQ3xfKtUCrzdtxMbiPzBPANatX28lDskM+fn5RgWbJicnGRgw33WSLhmZAJiWAI5Go9TUmA8vZjufz8f1199gq4JZAfBlGw3lkCjOXf8fcCosLtc5wB2z16fbBRhO95xUXcLRZQVWgnnKMAHYsGGDlTgkc5QZjgJk0jqAjEwATEsANzZqC+ByNa5bx2WXXW6ruTcAf2ersSx3PPvu+pMZ0n8N8DPSmwQEgfNNG7lks73tdk/1awRAViaXdgJkZAJgOgKgCoArc/kHP2jzTugrOKMBsrS5u/4HgM2GbaU7CXgDYNR7V0RDvKmhykowNnYAbFivEYBck0vlgDMzAdAZAGkVDoe5/obP2xo1WQtYW12YZUzv+peSziTgEtMG3r9xDdGAnY8lGzsAtFg495guBMykcsCZmQAYjgDoFMCVO+GEE3jjG99kq7kPA8faaiwL2LzrX0o6koANwKkmDfh9Pi7cZO8oVeMdAGvX6gS/HJRLtQAyMgEwrgKoKYCkfPqqqyguLrbRVBC4nQz9/bMsFXf9S0l1EnApTgGgpJ1VW05joVHxwAWMFwBq+D8nlZWVGl2vBCCF4vG48RyLhvWSU1lZyT/98z/bau4lOCvGc1Wq7/qXkqokIAacZ9qIzcV/YD4CsH6DFgDmIu0C8LDW1lajQgvhcJhVq1ZZjCi3vOtd77ZZF/16IBf/Y6Trrn8pqUgC3gEYrZyqK4hyZq3ZB+/+THcArNcIQE4ynQLo7tEiwJQxnv+vrycQcLtQWuby+/3ccMPnCYVCNporBj5vo6EM4cZd/1JsJwHGi/8u2byGgMWtuUOT08Y7ANarBkBO0jZADzM+A0DD/8Y2b97MBRdYG71/F07t+Gzn5l3/UmwlAccCx5k0EPb7+YfD7C3+A3iqf9h4B0B9fb21eCRzlBsmANoFkELGWwC1ANCKj37s49TV1dlq7lbcqVqXDl6561+KjSTgMtMg3tJYRXUsbNrMAqbz/2vX1mkHQI4qLSszOg59aGiI8XGz0ad0ybwEQFsAPSEWi3HNtdfZam4DcIWtxjzEa3f9SzFJAkqAc00DsL34D7QAUJIXCAQoMtztlCnTABmXAJiXAW6wEYYAp512Gmed9VpbzV0JbLHVmMu8fNe/lGSTgPcCeSZvfHhJPidVl5g0sSSdASAmcmUdQEYlABMTE3R2dBi1oTLAdl1z7bUUFRXZaCqMMxWQ6Yc0ZMJd/1KSSQKMF4JcdridU//2px0AYkIJgAft2rWLmZmZpK8PBoOsWWN/uDGXVVdX89GPfcxWcyfjLArMRJl217+UlSQBpwGHm7xZQSjAu9bbP5VzWDsAxJBpApApCwEzKgEwnf+vXbvW1vY1med97zufo446ylZzX8BwT7kLTgD+Qnrv+u+YfU/bXsPyivpcbPpG71m/iqKQ0cnBS3pqwOwMgEAgoB0AOa48R8oBZ1QCYLoFcJ22AKZEIBDghs/faKu+QhVwrY2G0mDurv8PwKY0vecAcBHOyXunAo9abv924OuH+J5Vs+9v5JItqRmNe6p/2Oj6uro6wmG7uxIks5SVawrAc3YabgFUDYDUOfrooznvPONqsHPeD5xoq7EUcWOu/y7gSOBrs38fAF6NvSTgdpyiPoe6gb4AMBpKe0V1CUeVpuZUaPMdABr+z3W5ciSwlQTgB9//Pvf+9rc8//zzKd3/aLoDoKG+wU4gsqRPXHEl1dXVNpry4ywI9OJ8TQy4kfTO9fcB7wbOBnbt99oAcCbm0wFfZnmdfxALi/8uTsHWvzmmCcC6ddoCmOuMzwPozYwRAOMJuHg8znXXXrNgcV5RURG1tbXU1q6ltraWdevXs37DBurq6igoSD7rN10DoBGA1CoqKuLqf/0MF190oY3mjsI5NthLpYKPB/6d9C7yuwu4kMUd/3y9ONMBvyG5qny34/xbL2fq/BzAaOl+ZTTMmxuqTJo4KG0BFFO5ciSwcQLQ1ta6aGX+4OAg27ZtY9u2bYu+f//kYM3a2gV/P5Dp6Wna29uNYm1UApByr3/96/nxj37IPffcY6O5q4AfA002GjMQxYnlY6RvuH8AZ3rha4f6xnnf/2pWngQsd9h/jnHd//dvXE0kkJrZx+HJadqGTXcAaAQg1xlvA8yQKQDjBGClC/OSTQ5mpqeZmppKOs5AIGCzdK0cxDXXXsdDD72S0dFR06bygFsAa9WGkuDVu/6lrDQJWGnnvx541QpjWsDv83HBJrt1/+ezsQOgrk47AHKd8XkAvb3MzMwYlRROB+MEwHRh3nwHSw5MV+WuXr1aWwDTpLa2lg996MNce+01Npo7C3gT8D82GluBGPAZnKHxdN319wEfBP7boI25NQH3AMcc5Pu+zPKH/edcjOG6obNqy2ksjJk0cVCm8//19fXaASDkFxQQiUSIx+NJXT89Pc3AwIDxSEKqGacnplvzlmtiYsLo+sZ16yxFIstx8SWXsHHjRlvN3YxzdHC6HA88BnyU9K7w34pZ5z9nbk3AgXYHrGTOf04E+HvDuPjAltRU/ptjugVQOwBkTi5UAzROANpa7Y0ApFLTjh1cfdVV/Md//Af33fd7WlpajKYU5OBCoRDX33ADPjtnvK/CmYNPNa+t8DdxoN0By13tv7+3A5UmATUURDlzTWrviLQDQGwx3gmQAQlA2tcAuKWtrY3bb79twddCoRC1a9fS2NBAQ2MjjQ2Nzp+NDaxdW6cpA0Mve9nxvP3cc/n+975no7nLgG/j7L1PhZcD3yJ9BX3AqeZ3MWB2wMWB9QKns286IJlh/znGlf8u2rwGv52E8IDMdwAoARCHmwsB+/v76e7upre3l67OTnp6eujp6aGzq5Pe2ecf+/jHjeID8wQgvHv37gQZeoDL5OQkTTt20LRjx6LXAoEAa9asmZcYNNBQ7yQKDQ0NOit8mT75yU/x61/9ir6+PtOmgsBtOGV3kz8QYrFMnetfrrkk4L3AF0mu8z8G5989aZGAn/dtTN3iP4AhGzsAdAiQzLK9FbCnp4fe3l56enqcTr23h+7ubrq7upyOvquLrq5uent7mJycPGT7bRbW35kmAI2JxExGdv6HMj09TWtrK62trdx/330LXvP5fKxatYrGxkYaGhppbGykvqF+7whCXp7RCalZpbS0lE9+6tP8vw9/yEZzL8UZvr7FRmNk513/UnpxzlhIlvHWv7c0VFEVTe3ium2GOwCCwSB1OgNAZpnuBPjGN77Od7/3XXp7e+nt6bE+5WxjisE0AcjJdDmRSNDe3k57ezsPPvjgoterq6tpmD+t0LBv5MDS0bkZ5W1vexs//MH3+eMf/2ijuc/h7AjYbdCGG3f9vcCHSM9dv03FwDtNG0ll5b85pvP/dfX1mvYT+vr66O/rY3jEbEFpc3OznYAOwEatAdME4DDjCLJQZ2cnnZ2dPPzww4teKy4upr6+nvr6eupm/6yv2/c8G/l8Pj5/442cduqpxrs5cDqkLwLvSPL6TNrX7wXnAUZF+7eWFXBSdYmlcA7MdAfABg3/Z63BwUG6u7qcP3u66e7qZnBwkJ7ubrq6u/Y+7+joyJjF4V4YAdCKmRXas2cPTzzxBE888cSi14qKimloWDo5qKurs7Wi3hXr1q3nkks+wE03fclGc+cC3wF+uYJrMqGanxcZ13W+ZHNqt/7NMT8ESB9nmWS5nfru3buZnp52O1zrvJAAKGW2aHDwwMlBOBxm1apV1NXXs3HjRjZt2rQ3OVi7dq3nK04B/L+PfIQ77/wF27dvt9HczcDvgOWUG9Rdf3JOxjl9MGmFoQDvXG/lgKhDMt0BoAWA7pvr1A/WoXd1d9M3W2kvlykByCETExO0tLTQ0tLCH+6/f8FroVCI1atXO6MGdc7IwcaNG9m4aRO1tbUEAum64T24cDjMZz/3Od5x7rk2mmsArgQ+eZDv0V2/GePFf+dtWEVRyHi38SHZOQNAH2e2TUxMsGdg4JB36erUV87GkcMmY8pBnLsvrZrxsKWSg7nphY0bNxKNRtMe0yWXXMwdP/uZjaYmgGOBxbWjdddvqhJow6kAmLQn3vgyjio1WkKwLA93D3L8Lx5J+vpgMMjDjzxKMJj6ZCXTxeNxBvfsWdCpO3/Odeg9ezt3deqp4wMSzv+fSS+sMvltDwIfWvPqC7463tXMWFcT492tzEwZL/ISiyYnJ/eNHOz3WjAYpLa2dnYr49xOBWdbY11dXcpqol999b/yu3t/x+DgHtOmwsBXccrezu0Ac2uF/weB76bp/dLhAgw7/1dUl6Sl8wfz+f+Ghsac7vzHxsbonr0L7+vvo6e7h76+Xvr6+pyv9/XR19dHT3e3jUO+xILZD7xKDG44TH7jx4Fb1731k1+d/8Wp0T2Md7cy2v4cI7ufY7y7lfGeVsY6m5geN1ulK3ZNTU3R3NxMc3Mzv//94teLi4vZuHGTs95g3sjBunXrKChI/oO9qqqKK668kn+68orkg9/nZJyV6v+J7vpt8eMkAEZSXfd/PvMzALJvAeDcnXp3T89+i+W6Ftyld3d1MTQ05Ha4kpwqXEoAlm4wr5iC+qMoqD9q0WsTA52MdTfjjBg4j/HuFsa6mpUceNCePXt45JE/8cgjf1r0Wk3Nqr2jBo0NjdQ3NDh/b2hcVnJw3nnn8eMf/ZDHHnvMRqg3Ai8CLkV3/TacjbPGImlV0TBvajA6OmBFjHcArM+MBGDPnj309vbSP3uXPvd8/7v0vr6+pE+yk4xSZXJxWse8wiXVhEuqKT7sZYtemxzqYayrZV9yMJsojHZsV3LgQR0du+no2L1kcZ/KysqF0wqzJZQbGxspLnYO9fP7/Vx/ww2cdeaZNvbdVuB0xunyM5wFcums5pdOxnX/z9+4mnAad6aYJwDuLQDs7+93ht77+uju6aa/r98pGdvdTV9/H32z5WP7+vqWVSJWcorRFhvPTHqFCisIFVZQtP7FC77e/D/X0Xb3Vw9wlXhRd3c33d3dS44clJaWLqiSuGXLFp588kkXokxKNt/1z2nEOUUwaQGfj4vSUPlvzsjUNK2GOwDWWRwBmJmZcTr1vj56e3vo7XE6954e53CX/r5+untm79h7e7Nyj7qkTeaMACRjrLvZ7RDEov7+fvr7+3n88VQd6pcy2TjXv5SLMTwm/LVry6kvSN/ukp7xSaMzAEKh0LKqcOZ64RnxpOxOAMa7W4yu3/r2f6Sgup7hjmaGOpoYmv0zPthrKULJcrlw1z8ngnNqoJGL01T5b0582mybWUVlJQ899ODsHbtzcMveu/TePvr6eunv7yeRMEkzRFIiO6YADmSsyywBWHXMqZSvP2bR1yfHhhjqaGa4o4mhjiaGO1r2Jghj/dk6tSsrlO1z/ft7C4Z3FI2FMc5cY3aK2krlh8zWfe5ub+eyD3zAUjQi5vICPiojAVZFg1SGA1RG/POeB6iJBKiKBDjq3rYPm7yPpxOAicEe4wWAhTWNS349FCukrPEoyhoX71aYio85iUFny74EodNJEEZ72kkkVNgiy+XSXf98f2/awEWb1uBP85kVVdEwIb+PyRndoYt3VUYCizrw/Z9XRwLURAPkB5Y9C9dvEpOnE4Dxrmaj6yOFpYTzi1d8XTASo6T+cErqD1/02szkBMNd+0YL5k8tjPTsJDGdGSdJyQE9D7wV+KvbgaRZKXCKSQORgJ/3bVxlJ5oVCPl9bCjK42nDnQAitpWG/Dz1qjoqI36CHjzMzdMJgOkCwIID3P2b8IfCFK05jKI1i09CnpmeZKR7p5MUdDrTC4O7mxjubGa4s4WZKW3hyQCHAX8BhoDtwAvzHnN/3wVG68686GwMy3q/taGKymhqqkceyitrSpQAiLFYwE9lLMyqWJjKaJjyaIj/fH530u3tmZqhKhIg4L2+H/B4AmA6AlBY3WAljuXyB0IU1jRSWNPI/vdBicQMoz27FowaDHc2712UOD1hto1JrCsEjpl97G+chYnBs8DjwN+ATK2+8gbTBi5O49a//b1ubQW3P5PtGzQkGeWREFWxMJXRENWxMNWznXt1dO658/qqWISCJdaT/Lipi5Gp5HZ1zCSgOz5NTdQbB7Ltz9MJwJhhAlBQ02AlDht8Pj/5lWvJr1wLR71i0eujfR2L1hvMLU6cHFOZTo+J4hyTu/9RuVPA0zgjCI8Bv5r9u9dFMdz7f3RZASdWl1gKZ+XOXFNOTSxMx5jOIsl2Yb9/b6ddM9uZV0ZDrMqLUBkNURkNsyovTFXUeS3kN7v9roqFaRoaS/r6rgklAEkx3QJ4oAWAXpRXVkNeWQ1Vh5+w6LXxPT2zycG+9QbO6EETE8MDLkQrBxAEjpp9vGf2aztwagjcCdyHM3rgNa8A8k0aSGfhn6UE/T4+cmQd//jIC67GIckpDAWoiUWoijkdeE1sXwe+767duYMvi6T3ANpq0wQg7t2aEJ5OAExHAAo9NAJgIlpcQbS4gopNL1n02sTwwN71BnPTC4MdTQx3NDO+x/y8aDG2Drhs9jEC/Ai4DXjYzaD2c4bJxX6fjzfWG+0etOLSLbXc8vROWgyrAoq5gM+39258fgdeFQ1TM3unXjXb0VfGwsSWv+o97SqjZgmHEoAkTI70MzVqdlxsJo0AJCtcUEJ5wTEHqHUwvOR6g+HOZkZ7k1/YIknLxym0816caYLbgf/GWXDopteYXPzi8kJqYu4s/psvLxjg9hM3c9av/pJ1KzS9IBbwO3Pl84fa5w3B1+RFqJr9emU0lPbtoKlSbbiwtTPu3Z1hnk0ATBcAhvKKiBSV2wkmQ4ViBZQ2Hklp4/5T1TA9MT47cjCbFHTsSxBGe9tJzHg3a80SxwC3AjcAtwCfB/pciGM1i9cyrMg5dRWWQjH3mjXl/MsxjXzmL01uh5IRKmbvxJcaat+7WC7mLJhbaoFcLqgyTG41ApAEDf+nViAcpWTtZkrWbl702szUJMNdrXsXJe4bOWhhpKuNmWltZ7SoELgCpwb/jcCXcKYK0uU0wOhW7XVrvZMAAFx1bCO7R+N847l2t0NJu7kFctWxfcPre4fal1gsZ7pALhdUKwFIP9MRgII0bwHMJv5giKLV6ylavfiEtMT0FCM9OxcVQRrqaGK4q4WZSa3CTlIJ8FngcuBzOKMD6Rg7XLwlZQWqomGOKS+0FYsVfp+P20/cTEkkyI1PtrodjrGiUJCavHlz6Psvlpu7a49GKI149iM9Y1UZTwEoAVixsRzaAZBJfIEgBdUNToJ19MLXEokZRnt371uQ2Dlv10JHE1Px5FfS5pBq4MvAecD7gFSflfxKk4tPWVVqNnyQIn6fj8+/5DBeWlHMpX98lu5x7ySm8xfI1eQ5w+uV0TBVsRA1sciiLW5RDy+QywWaAnDBuOEhQJoCSD+fz09+xRryK9ZQfeRJi14f6++YN3KwcHHi5OigCxF72nHAo8A1s49UzLtUAZtMGjhtVamlUFLjrY1VnLqqlGufaObWp3cyZnhy4IHkBQNUzS6Em7tTX3Kx3OyduxeTJllalXYBpJ8XywCLmVhpDbHSGqq2HL/otfhg795FiYO7d+xNDIY7mogPGZ13kcnCwFXAm3AO6vmL5fZPwnD+/7TV3k4AwFno9oWXHsa/HN3If2/v4I7Wbh7oHGD8EMnA3Jz5XGGZymiYqr0L5CILFsvlB3NzgVwuMF0DoCmAFZoaG2JyqNeoDY0AZJZIUTmRonIqDnvxotcmRgaXrJI41NHM+ECXC9Gm3VbgIeD92D2h8KWmDXz8Ty9w1YsaOabMW+sAllIaCXLZ4bVcdngtkzMJXhgcpWV4nKFJ5wO6OBycHXZ3Ov2gFsgJTinhgM/HdCK5zaXj0wkGp2YoCnpvKseTCYDpAsBgJI9YifuFScSOcH4RZeuPpmz90Ytem5mcYLRvN8NdLexpe5Y9O59juLOV4S5nx0IWHd0cw6kZcDJwKXYWCB5n2sAdrd3c0drN6avLuPa49RxXUWQhrNQL+X1sKclnS4lRAUTJAX6fj4poiE6DMtNd8WklAMtlvgWwEQyKUIx07+SPN19OYU0jBTUNFNY0UFDTSGFNA6GY9+90cok/FKagup6C6npqjlq4nm1mapLR3naGu1qcpKCzhT07nSRhpHtnptY6uBBoAM7F7CxwH7B4uCVJ97T3cc/P+zIuERBZjupY2CgB6ByfZkN+eksYL4cnE4Bx4/n/eqPrB9tfoOvp/6Pr6f9b9Fo4v3hvh1NQNftndd3e5+Id/mBo738rjlr42szUJMOdLQx3NjtKRUcIAAAgAElEQVRHNnc07V2DMNzdRmLau9W7cEr3PgS8Ckh2s/t6nK2HVt3T3sdvf97H39VX8uljM2NqQORQTLcCdk1482bDkwmA21sAhzoOXEVsYmQPfTueoG/HE4teO2hyUFVnNCohdvmDIYrWbKBozQZW7/daYnqK4e42Z7fC7DkLg7udHQvDnS3MTHmiENJm4Pc4hXx2JnH9UsccW5EAftbSzR0t3UoEJCtk61ZATyYAxkWADBOA4Y7k3v9gyYE/FCavbBXFtRsprt20IDnIr1qLz+e9+aFc5QsEKaxppLCmkVX7vZaYmWa0t52hjiYGdz7PQOvT9LdsY0/bs0zFR9Md6mHsSwJWWvHGqPzvcigRkGxheh6AEoAVcLsM8HCn2QjEUmYmJ2aHnFvY9effLHgtEI7OdjhOgZ01L371kscCi/t8/gD5lWvJr1y7YM1BIjHDUPsOdj12D7sevZvuZx9N1xqD9ThJwKnASn5xj0hJNEtQIiCZripmNn/v1a2AnksApuOjTAyaHWObyimAVJieGGeg9WkGWp8GIFJUpgQgw/h8/r1TClvOuZj4YC87//xrtt/7PXqefSTVb98I/Bo4nuUvDEz5CMD+lAhIpqqORYyu9+oIgOfGnce7myHJ/ZYAgVCEWFlN0tcnEjMMd7lbP1znGGS+SFE56099B2d85uec8dlfUHf86/D5U1osZiPwQ5aX1IeBDakM5mDmEoEX/exPvPG3T/CXPrdPQxY5ONNqgJ3jSgCWZcywBHBBTYPRfPpo726mJ8aNYjClcwyyS8XG4zjpI1/nnJsepPHkt6ZyMejpOKcJHkoDHhj9UyIgmcJ4EeCEN3cVeS4BMF0AaNp5Dqd5+H8p2k6YnQqq6znh0i9z+lU/paRuS6re5lLgkkN8z+JjHl00PxE45zd/5c89SgTEW4y3AWoKYHlMtwCadp5DSe4AsCVaUkUoVuBqDJJaVVtexpnX/4pj3/NpgpFYKt7iJuDlB3ndk0NMCeDOth5e8vM/8abfPsFf+4bdDkkEMD8PoH9ihsmZ5Ke2U8VzCYDrIwCdZu9vSmcY5AZ/IMSWcy7mzOt+TdEa69PxIeA7wIHK8XkyAZiTAH7a0s2xP3tYIwLA+PQMezw6hJwrogE/RaHkZ80SeLMYkOvzgPszPQXQtANN9w6A/Wn+P7cUrdnAGZ/9JQ995VLaH7vHZtONwL8B5y/xWoPNN0qVuRGBX7b18Ib6Sq46dh1by7JjdGxseob++CS7RydoH43TP3Gg51N0jMY5d1013z0l7Rs3ZJ6qWIjByeQTsa74NGui3upyPRXNzOQ48f4OozZMiwC5PQWgHQC5J5xfxMmf+E+e/OGN/O0n/2az6ffh7Az41X5f37++kafNjQj8oq2Hjx5Zx9XHriMS8NzgJf3xqUN05s7znSNxJmZWdkiVSR16saM6FuaFwbGkr/fiOgBPJQDj3a1gcHqbPxgiv2JN8gEkEikpArQSmgLITT6fn61v/0dCeUU8/l9X22z6ZpzjhOd/chn8T+KeqZkE1z/RwraBEX5y2lZCaTyut2t8gp80d9E1Nkn3+ASdY86je3ySrvEJ+uKpLQ/dNe6J8tM5zXQhoBeLAXkqATBeAFhVZ7TXemygk6nxEaMYTGkKILdtOediZqYm+Ov3rrXV5Abgn4BPzvtadbKNBfxwztYQd/x10qRch5FftPZw5aMvcONLD0vbe7YNx/nAQ8+m7f3216URANdl43kAnhpHc/sMgKEOd+/+waljILntiDd+kKPfcYXNJj8K1M4+LwWS3npQUeDnpxcX8Ng/FfGGY0KunW/15W1tPLcnfWcvmJaCNdUTn2TKg6vIc0k2ngfgrREAl3cAVG15GW/592f21uyfOzt+uLOFod1NTI6ldjVypLCMcH5xSt9DMsMRb/wQw52tbL/3uzaaiwH/irMmoNKkoepCp8c/Zm2An15cwJO7pvnMXeP8+LGJtI4ITM4k+Pfnd3PtcekpaVAVDePDWY/ghplEgt74pPF2NEleNo4AeCoBGDfdAWChgE44v5iydVspW7cVOGfBaxMje/YmB8Nds0lC27Ps2fksEyODxu+t4X+Z77jzr6Gv6Qn6m/5mo7nzgBuBfJNGKgsX3vIftSbADy/I5/G2KFffOcbPn0jf1MDdO3vTlgBEAn6Kw0EGXNyO1zU+oQTARVoDkGKmIwCmUwCHsjA5WGip5GC4s3Xv8+UoqFEFQNknEIrwyo/9O3dfcQbxoeWe8XPg5oArgf8yaaSmaOlZw2PXBvjZJekdEdg1Gk/tG+ynKhZ2NQHoHJvgqFLX3j7nmSZfGgE4iMTUJPG+dqM23FxBf7DkYHoyznBHszOdsH9y0NW69/AjjQDI/vIrazn+A1/ivuv/3kZz5wJPmjRQUXDwSf90jgisdCudqapoOK3rDvanhYDuMl0HogTgIMZ724zOT/cFguRXrbUYkT2BUITitZsoXrtp0WtT4yMMdTQz3NlM0WrXDmiTFRjp3kn7X+6l94XHGdq9g/GBbhKJGYLhGNHSagqq1lJY00hBTSOFNQ0UVDcYlfxd8+IzWPuy19L28F2moQeBj5s0UJ6/vHXDcyMCj7VOc/WdY/ziSfuJwMaiPLsNHoLbw+/aCuguG+cBJACX1s0uyTMJgOnwf35FLf6Auyt1kxGM5lPacASlDUe4HYocTCJB6//dyTN3fZ2eZx858Pe1PbPkl/PKapyEoLqBgpoGCmsaZ5OEekKxwkO+/YvOu5rdf/kdU/HkC5HMqjC5OG+Fn4Evqgvw3+fnc+INQzyxy+4d0EnVJVbbOxTTDsCURgDcVRoJEfb7kx55mphJMDA5Q2nIO5vvsiYBUAEdSZWh3Tt45BtX0vHk/Um3MdrXwWhfB13b/rjotXB+MQXV9c6javbP6jqKazcRK3W27OdX1nL4Gy7niR/ckHQMNsTCK7t/GYknOOeWYeudf8Dn4wNbag/9jRa5vRWwc1wJgJt8QGU0ZLT2pCs+rQRgKeOmRYCUAIhtiQTb7riZJ37weWamUzf8OjGyh74dT9C344lFr4ULSvaOFuSVr8IfDDEz5d5QcCy0/ARgOJ7grK8M88AL9hfOfeiItWwoSslJigekEQCpioWNE4BNBd4ZqfZMAuB2DQCR+RIz0zx860fYcd8PXY1jYniA3hcep/eFx12NY85yp8FT2fmfsqqU645L/3oZ033gpro0AuA6862A3jrV0TNjEebHADdYiUME4JFvXul65+9FyxkBSGXnf1J1Cb84/ei0ngMwx+1FgDoQyH3ZthXQEwlAYmaK8d42ozY0AiC2ND/wP7zwG6Pt8lkrdIijNlLd+f/vGcdQcKggUsTNKYDCUICSsGcGbHOW6ToQrxUD8sRvVLy3ncR08h8YPp+f/Ko6ixFJrhravYNHvv4Jt8PwrOmDLIDO5s4f7CcApZEgq2IRSiNBVudF9j4vDYecv+eFKQ2HWFsQoSjkiY/qnGdjK6CXeOK3aqyryej6vIrVBEIRS9FILvvzf3ySybFht8PwrAOdRzO32j8Vnf+J1cXc5XLnD1ASCRIJ+IkfIAuKBvyURkKUhoMLOvClnlfHwgTcOklJkpZtUwCeSACMdwBUN9gJRHJa7/OP0f74vW6H4WlLnUg3MQVn3zLMfc9l553/HB/wj0fVEwn4WRULUxkNUxkNUZMXoSoaIi/ofoySWtl2HoAnEgDVABAveP4333Y7BM9b6ub3Iz8ezfrOf86/vmid2yGIi7LtREBPLALUFkBx28z0JDsfudvtMDxv/wGAp9qnue1++4fyeGXYX2S+bJsC8EQCYHoMcKpPAZTs1/fCX5gY2eN2GJ43OrEwA/jaA/GDLgxMxknVJdx9xrEUqvMXj6mMhoxq+e+ZnGF8Ok3nZS+D+wlAYobxHtMtgA12YpGc1df8N7dDyAh7xhZ+eN3ztN2hfy8O+4vMCfv9lETMZs67JrwzCuB6AhDv283MpMEQos9HQXW9vYAkJw3uesHtEDLCwOjCBKClz97tv4b9JRNUR812nHlpGsD1BGDMcPg/r7SaYCS9x4JK9hnqMNuKmisG9hsBsLmRzfZxwSKpYFoMyEsJgOu7AMa7tAVQ3Dfc0Wx0/Wc+81nWb1hPc3MLzU1NNDU30dzUREtLCxMT2VPCdf8RgLoyP9t22/lAe6hrD6/99V+464xjNP8vnpVNWwFdTwBMRwC0A0BMJaanGOneadTG8ScczxFHHLno6zMzM7S3t9Pc3EzzbFLQ1NRMc0szzU1NjI2NGb1vuu2/BuDVW4LWEgCABzoHlASIp2XTTgD3EwDDLYA6BlhMDXe3GR/3W1/fsOTX/X4/tbW11NbWctJJJy16fc+ePbS0tNDS0kJrSwvPPvsszz33LM3NzQwODhrFlAo9wwsTgEtOjnDL7+NMWdwJ8EDnAGf+6nHufo12Aoj3ZFMtANcTAPNTADUCIGaGO82moSorKykoKEjq2uLiYrZu3crWrVsXvdbT00NLc/PsdELz3mmFpqYmBgYGjGJOVtfQwp5+U3WAi18Z4ebf260FoOkA8apsOhLY3QQgkWC8p9WoCSUAYsp0AWBDQ2p+BysqKqioqODFxx236LU9e/bQ1OQkBF/4wo1s3749JTHsr2to8Uq9L7wljyfbp61XA3ygc4Cz/n97Zx7fWHnf60eSJcuSvO/jWWyPPfsMAwwBkhAgAQqkCUlISEKbhbY39zZJm/amadN72+Y23bK0WUiTNm1KCBAIAdIsbAMTMgMDDNtszD7j8TJeJO/Wvp1z7h/HhllsSdZ7pCPJ7/P5nNgTSe/7Ikvn/b6/9al9PCFrAkgKiFJyAZiaBRCf8aHEwkJjeFpkCqBEjKCgAOjszL8Ira6uZuvWrbzv/e9n5cr8fQdmIhqRxLkiwFEGj33Gw7VrjT9PPO+b4cbt+wgkCuemKVnaNDlLJwvAVAEg6v93Vjdir6g0ZjGSJUtAMANgVXu7IevIFqs1v13lxuaxArjLLTyaIxHwwqguAvyJwjGdSpYuojEAhZQFUNQCQFYAlBiBqADoyJELIFOstvyax+dzAwC4HLkVATdt3y9FgMR0RF0AYzFlwbba+cZUASDcBlgKAIkgmqYSFKxFYbYFIN8VdHz+hUP+XQ4Lv/y0h3d050YE3PzUfukOkJhKlb0Mpy37rVPRYLJAPsNFbgGQAYASMcLjw6gJsUI9HR3mfg4np6byOt9CFoA5POUWHvtsbkTA874Z3vP0ARKFcoSSLElKxQ1Q1BYA6QKQiBL09Qm9vra2lurqamMWkyUT4+N5ne/8VMD58JRbeDxHImCXd4o/e/mk4eNKJJnSLJgKWCiBgEVtAZBtgCWiBEbEMgDMPv0DjI6O5ne+NBaAOdzlFp74Iw/vzEFMwHePDnJiRiyDSCLJllIpBmSaAEgExlGiQaExpAtAIkpA0AJgtv8/FAoRDud3I0wVA3A+czEBV68xVgQomsb3jomVb5ZIsqVUUgFNEwARwcCr8spaHG5zTa+S4kfUBWB2BsBAv9j3KBt8GVoA5nCXW/jibzkxOlvxOa851RAlklKJATCtEqBoCWDZBVBiBOFJr9Dr2zvaDVlHtvT25b+N8egiLABev8qfPxLhvpfjhicr9ASKq5GSpHQolWqApgkAmQFQ+KgaJBUNFQ1V07PNNA1UNDQNLLMnOqvFggWwWsBmtWCzgs2S3+I02RIPip0i2xdoApQv+nr78j5nJjEASRW+uzPGl34VuaCDoGQeNAWUJKgKqElQVUCZ/dKpoMHs/+hfPIsVsIDVOvvvMrDZwVYGFlk2OdeI9gNY8gJA1gAoHFQNYkmVuAJJRUVRIaFqYsUqLGADymxW7DYLdhs4Zn/qcqE0uPXWD7BixUo6OtpZ1d5OZ0cn7R0dtLevYsWKldjtYr7CdJzuPZ3T8edjPKiiaixo0t99KslnHghzcCi3N7nOyoqcjp8bNH2jT8ZAiUEyrv9bM/C9sljBaocyO9gcUFYOZQ4ooe+d2UgLgCCRsT6h10sLQPYkVY1YcvZSNJJKDk5oGiiAklQ5u/mVxaILgXKbFafdgqPMXDng8NQIvT6RSHD6dA+nT1/YjKesrIy2tjba2ztob2+nvaOdjvaOWYHQjsMhdhMB6OvNvwsgqcJEUKOx8ty/nM+v8uc/i3DvS8ab++fjmpba3E9iBGoS4hFIRiAR1U/0uURTdXGhnNWh0WLVhYC9HMoqpCAQRLwj4FIXALIMcF5JqhrhuEY4oZLIxYafIZrGrPhQ8Md0QeAss+Cy23DadXdCPnE3LGfi5N6cjJ1MJunv76e/v59du859zGq10traSkdHx7wCoaIis9NtrwkCAPRaAI2Vuqk5qcL3dsb4mzya+8usFj69fnle5soKNQ7xsH4lxQpNGYKmQiKiX0yD1QYONzg8s2JAshhKJQ3QFAGQDE2TDIn5XqUFID1JVSMU14jE1YKtnKZpEEloRBJJsICrzILLYaWizJqXA0pd5xYGXvxl7ic6D1VVGRoaYmhoiN27d1/weHNLCx3t7bq1YJX+s2PWclBZqTfAikajeL1iQYzZMhrQ2Ag836Ob+w8M5veG9tn1y+mqKjAXgKZCLATxQGFs+qlQFYj69ctaBuVu/bJKMZAJDeV2rBYLapamrmBSJaSouAVKChuBKQJA9PRvd1VRXlVvzGJKkFhSIxBTiCY0CnPbXwANwgmNcELBZlVxOyx4HFZsOex217L5qpyNLYLP68Xn9bJnz54LHquvr6e9o4PGhka0PPcBmOP1IYUf7Ylxz578mPvP5sbl9Xz9su78TpoKJQHRgL7xm/T3EEJNQmRGv8rKwVkDjgITVwVGmdVCfbmdsWj2Qm80ptDhWooCQNT/35y//ufFggaE4yqBmLkmfqNQVA1/VCMQVXE5rFSW68GERlPXsRlP8yqCvvzn02fLxMQEExMTpq7hcz/NfxU+C/Cnm1by1W1dlOW5BfK8KHGITOtm/lIhGYOgTw8edFZBucfsFRUsTRVGCIDcBgmnwxT5IVwDQJr/32Bu4x/xJ5kMKyWx+Z+NBoTiKr5AkvGQQtxoS7PFQvcNnzB4UInRXFxfye7f3sa/vKXb/M0/GYeAD2aGS2vzPxslDqFxmB6EmFjF1lKlFFIBTbIAiDYBkgIAIJpUmYmoxHO06avJOLGJQWJTI3rcRniGZCQwm6P8JhZ7OXZPLXZPHfbKesprW7FXGuui0YBIQiWa0C0CNU4rVoM2gu4bPsGJJ/6L0PiQIeNJjKPGUcbfXbKaP1zfZn5tCTWpn/hzsCFOJVR6QwlOhxOcDiU5HUowmVCZTijEFAgpKoGknn5ZbbdSVWbFXWbBbbPS7LSx2mWny2Ony22nw1WG3SiRpCZ1IRDzg6tedxFIgNLIBDBFAIhaAJZ6BkBc0ZiOKMSSBm38mkrY20Ow/3WCA4cInjlMxHea+Mxo1j7NMlc1Fc0dVDR34lm1haqOrXhWbsZSJmbymrMIRBIqlU7dNSCaSFhW7uLSO/6eZ79+h9A4EuOwAJ/obuWrl3UJ32gNIeqHyJQhPv64qrF3OsYLk1Gen4zy4mSUkahxm0GZxcIaj5231zt5e72Tq+oraHcJ3uqTcfCPgN0Frjq94NASpxRqARRlEOBSdQFoaARiKv6IKhzcF50YZPrIs0wf3c300edJhIztKZ8MzxDo3U+gdz+je34GgLXMgWfVZmo3XUvd5nfiWbHxzXKCi0TVYCaiEo5r1FXYcJSJiYDll93IisvfzZmXHhMaRyLO1rpK/vXKNbytWaxGgyEkoxCc1NP6BPDFFH4+EuKR4SDPTUSJ5tBVl9Q0jgTiHAnE+Y8+PwBtzjJuanbxwTY372yoyN5CkAiDPwquWiivNHDVxUcp9APIuwBQokESAbEApqVoAYgrmrCPPzY5zNirv2LslV8S7H/dwNVlhpqM4+95DX/Pa/T/4p9x1DRTf9ENNF35Aao6L81qzISiMRpM4im3Ul1hE7IFXPnZ7xCdHmXs+CsCo0iypcZRxpcv6eTT65ebb+5H0839ET9kKbfH4woPDAZ5ZDjE7okIZobnDEWT/KDfzw/6/dQ5rLyv1c1tbR6ub3QtvkmTpkJoQo9/cDfoNQWWINICkAWip/+ychcVNU3GLKYI0AB/VMEfza56mKYmmdi3neGd9zBzYk9BpSnFp32M7LqXkV33UtGymuYrbqX57R/BUdWwqHE0IBBTiSY16l22rLMFysoruPqL97LjS+9neuBoVmNIFo8F+Hh3K1/d1iV8UzUEJQGhUUgmsnr5gZk4d56e5v7BYE5P+tkyGVe5qz/AXf0BVrvtfLazmt9bVUlV2SJjwhMRPRDSXacXFVpiyCDALBA3/7dnbTYuNlQNJkJJoln4+pOhaYZ33sPIrvuIT5tTLGYxRLw99P38aww8+i2arriVths+hatl9aLGSCga3mCS2gobHkd2CS4OdzXXf/nnPH/nZxjeuyOrMYqEIaAZE6uBAlxU5+Ffr1zL2wvB3A8QD+qn20UKZQ34xUiIb/XMsGu8eLoU9oQS/Onr4/zN0Uk+ubKSP+2qXlxqmqZAcAzKI+CuZymVF25yisUzLUkBINoEaKmY/+NJjfGQgrLIG1Ey7Gdoxw8Y2vEDlGjxpe+oyTje3Q/gff5B6i+6jlW3fAF329rMB9BgKqwQVzRqs3QJ2F1VXPMX93Byx70ceOCfhDsGFign0NOAW82YvHrO3L9uuflpfTCbZjKpB/stkp3jEb54eJKXpqLGrytPBJIq3zk9w/f7/Pyvjir+em0tDY5FmPZjQd1yUtm0ZLoRyhiALJBtgNMTjKtMh5VFeR7VZJyhHT9g8Ml/Ixmeydna8oamMrH/KSYP/pqmKz7Aqvd+nvK6ZRm/PBRTSSY16t227CoJWix0X/9xVr31fRx//D85teM+IlOFb0lZBKeAOvIsACzAx7pa+dplBWLuB/20HxzTA9wWwUF/nC8enuAJX+nUAoirGnf2zHB3f4AvdNfwp13VmZerTcZ0l4CneUn0FxD9/E7EFRQNclDfLGPybwGQGQApmYqoBBepDKcO76LnJ18i4st/a9hco6kKvhceYuyVX7Lixk+z4qbPZpxKGFM0RoMKDZ4y7FmWvHK4q9j8oc+z6dY/Yez4K4wc2Mnk6YP4h04SHh9Gy3Vnt9xxCmjP54RbZs39VxWKuR/0mvhB76L8/WFF4/8emeDO0zNiLbMLGH9S5a+PTvL9Pj/f39rIzc2uzF6oKhAYAU+jnjJYwrjLbLjLbISS2Z3kVU0PFG0uN89ikn8LgHAb4HZD1lGITIYVQvHMN5S4f5ye+/+K8b2P53BVhYGaiNH/q28y9uqjdH/sq1R1bcvodUlVYyyYoNFdJlRK2GK10bT+CprWX3HWmuIERwcIeHsJeHsJevtmf+8jND6IpiRTjGg6p4At+Zio2lHG317cyWfWF4i5fw4lqW/+i/g77RqP8Pv7xugJZRcgWGwMRpK8+8URPrGykm9ubqA2EyWtaRAY04MDSzxVsLnCwelA9jEfvtgSEgBKLKwXlxGgFF0AGvrmH17E5j95YAcn7vmCcEplsREeOcmBr3+QtnfdQfsH/hJrBqZGRYXRYJJGTxkOA+1tVruDqrYuqtq6LnhMVRKExgZ1UeDrIzgrDALeXoKjA6gJ07vF9QC+XE5gAX63q4WvXdZNS6GY++dQEuD36kFsGRBWNP788ATfOz1TXA22DOJHAwGeGg3z/a2NvKclk4h/DUKT+q8lLAKaBAWA2YGAeRUA0bF+oTQ0m72ciroWA1dkPpoGE+EkkURm74uaiNLz4P/D++z9OV5ZAaOpDO34L2ZOvMS6T32Xiqb0olDVYCyYpNFjZzGxTdlitdmpbOmgsqXjAie7pqmEx4cIePvesBoEfX1vCAQlnvNgMg1dAIip8RRsrvXw3bcWmLl/DiWh1/LPcPM/HUrwgZe9HJgxXbSZykhU4ZY9Xv68u4Z/2FCfge96TgRYSrapULFnAuRfAAjgaV6FxWJu+0RDWeTmH5sc5si//Q9TivgUIsGBQ+z7+3fT/fGv0bjtt9M+X9VgLJSgSdAdIIrFYsXduAJ34wqYpx1xeNI7azHoJejrP8vF0E8iEjBiCV4gSA4sAFX2Mv72kk4+W2jm/jmUJAS8uq86A7aPhrn9VR+Ti7DOlTIa8NWT0+ydifHAtmbq06ppTU+rhJIUAcVeCyCvAkBmAJzLVETJePP3n3qVI//+KRL+8RyvqrhQokGO/edniHhPsfLdn0tbI0KddQc0V9pZbN2TfOGqa8FV10LThisveCw6M86hh7/Bie0/FJni1OxPwywAFuD21S18/bIuWl0F2jBGU/VWtxlu/l85Mc1fHZ0wtYJfofL0aIRtOwf578tb2Fqd7u89KwIslpIrGCSaCeCLmRsnlNdboGgAoKeEAgBnogrBDE8Vvhcf5uA3Piw3/4XQNPp/+Q2O//BPUZPpzbSqBuPBRFFGcDurGzL6b0xDz+xPQwTAploPO2++lPuu3li4mz8aBEZ183/6Z/JHB8f5yyNy809FXzjJ1c8N89xEJi4rTe8qqJSWG0W0FoDZFoC8CgDxLoClYQEIxdWMS/sO/+ZuTtz9ebQsy5IuJUb3/IzDd34cJZY+LzuhwnhIybbMu6kEfGKuNAyyANgsFr5xeTf7bnkL72gpQF//2QTH9cY+aVA0+P29o/zr6RKopZEH/EmVG18YZvtoBrUQtFkRlmHsRTEgbgFYUi4AWQUwmtSYjGT2Rx/c/u/0PvKPOV5RahyOcmpqaqmqrMJTWYWz3InNZsNut6MoColEgmQySSDgJxgKMD09RShkXgXC6WMvcPjOT7Dxj+/GVp7a3BhLqkxFobaiuCqXBb29okMYIgA04I/WryhMX//ZRP0QD6V9WkLV+N3XRvnpkHmf3+qqGpqaW6iuqqG6uoZKTyXlTidlZdqVe+cAACAASURBVGXYZ+tfxGIxEok48UScmZlppqYmmZyaYGJinEgk/0WJworGLXu8PHBZM+9vTWPiV5O6CKhqoRTKBssYgAxREzFiUyNCYxR7ESBVg8kMT50Dj32b/l/8S+4XdRYWi5Xm5hZWrexgedsKGpuaqamuYbFf1GAwgG/Ui883wtDwIP39vSTzaMGYOfkSh771u2z63L3YnKkDj4IxFbvNknXvgHyjJGKEJ8S+R7wpAKLADFCdzSCqpjEWjRew2R9IRPUSv2lQNbj91VEeHs7v5t/Q0ERnx2raV3XS2tpGRYVY8ZyJiTHODA5wZrCf3t4ewuH0wscIYqrGbS/7ePgtzdySTgQkY7o7wN2Yl7XlEikAMiQ6PqAH4WSJtcyOu6HNwBXlFw094j+T2v4ju+7N2+Zvs9lob1/N2jXrWdO9DqezQnhMj6cSj6eS1Z3dACQSCfr7T3Oq5wTHTxzNyynF3/MaR773P9j0x/ekrRw4HVYot1lMzQzIlKCv34jqg6fO+t1HlgIAYDSaKFwBoKoQHs9IcP/J6+N52/zr6hrYtHELGzdsobraWNdJfX0j9fWNbL3oUjRNpa+/l6NHD3HixFGisdymlyY1jdtf9bHjbcu4ss6Z+smxENgrwFHcmQFNFTINMCOiguZ/d+MKLEXcdzoYVYhmEPE/sf8peh74m5yvp6a6lq0XXcrmzVtxu3P7JbTb7XR1raWray3XX3cTx44dYe++VxgaPpPTeaePPc+Juz/P2t//dsrsgLlCTE2VZQVvlAz6+kSHGEM/9c8xCqzJdrDRSAEHdYXHM6ry9/WT03wnxz5/i8VCd9c6LrvsClYsX5XTud6c00pH+2o62ldzw/U38/qhA7zy6otMTuaueFhY0XjvHi/Pv6ONNZ40m2N4EsoqoIjv6/XldsqsFpJZRhRHFA1/Ul18K2aDyJsAEC8BXLzm/3hSYzqW/tQWOL2XYz/4I7QM05SyoaGhibdecRXr1280paaCzVbGxo1b2LhxCz7fCLtf2MXJk8dyNt/oyz/HUdtKx61/mfJ5cUXDH1Wodhb2zSjg7RMdoue8fwvFAYxGC1QAxIIQT29pun8wyF8czt2GaLFY2LhhC29769XU1tblbJ50lJXZuXjrNrZedCmnTh3nud2/YXQsN4Ugx+MKN704wgvvaEtd5lZVITQGlcVb3M1qsdBQbscrIIRHY8oSEABLNANAN/2n9/vHZ0Y5/L0/QI3nppe4x1PJNe+4jo0bt2BJkyufL5qbW7n1/R9haOgMO3ft4MygcHT7vAxu/zc8qzanLRbkj6lUlFlxlBXG+zMfAeMCAOcQ2gV8ObQAxBSVmKpSZV/kbUpTMvL7v+6P8wf7RnOWCNLevpp3XnsDTY3NOZph8VgsFrq719HVtYYDB/fx3O7f5CRo93Qowe2v+nj6rctIGSOaiEIsUNTlgpsqHEICwBdV6HKLuRKyJY8ugD6h1xdrBkAgqqQ1D2mqwvEf/HFO8vwtFitvuexK3vbWq3E4Cqwe+yxtbSv4ndvv4Nixwzy14/GcBC6d/NEXcLetw9V6Yd3+N9BgMqwXCSoQjXQBBmYAzJFXC0AwoeCNxBmNxhmNxC/8PRJnLJpgJBJjJp7kju5W7rpqw+IWFZrUT5epnqKofPgVH5EcJPq7XG7e9c7fYuOGvPRaygqLxcrWiy5l/fpN7Nq1g737XjF8jmfGIvzjiSn+am1t6ieGp3RXgC3vvekMQTQQcCxuXhxA0bgAijEDIKmSUb7/wGN3Mn38BcPnb6hv5N03v4/W1uIInly3biMrV7bz1NOPcez4EUPHVmIhjv77p9j6fx7FVr5wpHVChUBMoapAXQEGuACMFQCROOPRBKPROGPROCPh+OzvCUbCsTd+94Zj+CJxIsriAhgXbWFIRjNK+fvsgXGOBoy3XnR3r+PmG98rHM2fL8od5dxw/bvp7lrLY0/8gmDQkFLTb/C3x6a4uqGCq+pTBAVqqm6x8TQZOne+KOZaAHkRAJqSJDYxLDRGMVoApiNKWvPizPEXOfPYnYbPvWXzxdxw/c2UpYmALzRcLjfvu+U2Dh8+yBPbf2Vo+mB45BR9P/snVn/071I+zx9VcTus2Aosv11VEoTGh0SHOT8GQMgF8MOTI/zwpHBa4oKMRhfz99f0wLI03HcmwN0Dxm50NpuNa66+jsu2XUEx5rd3dHTxB7/3aX756M84ffqkYePOZQbsv3Z56r4B8bAu3srSZA8UIMWcCpiXyIPoxBk0NfuaxxZbGe6mFQauKPdEkxqRROrTjpqIcvLevzA06M9ms3HTje/l5ptuKbrN/2w2btzC795+B5WVVYaOO7zznrTWFg3wRxf/N4lOjxIaHzIiTW9eQqNn0BbRu34BDLUA5JpFWQBiQUhTJnkspvC51411tTmdFXz4to9x2bYrKcbNfw6ns4IP3fpRtl16haHjDkaSfOFQBoGWGYi3QkRaANIg6v93N7RhtRXXZjaTwQYy8Oi3hYMjz6a83Mn733cb7as6DRvTTFpalvHJj3+KR372E4ZHBo0ZVNM4+aMvcMmXnkpZKTAY1/A4NeyLsAIcf/IuDv/s21jtDjxNq6hq7cTTvIrKlg48LR1UtrTjbmjDkqWv0wDz/zRw/u5X0AIg8xgDDSLTaZ/1hcMThnb2q6mp47YP3k5dXYNhY5qJxWLlunfdSEN9A9ufftwwMXv3QIDfW1XF21O5ApJxXcQVWdfAYu4HkBcBIJ4B0G7IOvJFJKEST6Y2/oeGjjH41PcNm9PlcvORD3+8oCKOjcDt9vCRD3+chx7+sWFZAtHxM5x57Du0f+CLKZ83HVFpdGceCxCc3aDVRBz/0En8QxeaUq02O+6mFVS2tONpbqeypZ3K1k48ze14mlZiTWG1yUEAIOSgJbCRxBSV6XiSGkeaW1U0kLbL37MTEe4x0PRfV1fP7R/5JB5P8UawL8TWrduw2x08+vjPDREBGvDpA2PsvXY5ZakibCPTUO6mmCwpTc7iLQZUFAKg2AIAMwn8O/Xj/2OEOReAigoXH/3wx2kssc1/DofDwYc++Ds89MiPOXPGGBEwtOMHtFx1O87GlQs+J5pQiSWtlGeYFphJip6qJAiMnCYwcvqCxyxWG+6GtjeEwZzVwNPSTmVLh5FNgM5mBogBBVrOTw80TC0ANIimLuSTUDX+cP+4YSl/pbz5z7Fx4xY0NB57/BeGiIDX/XHu7Jnhf3elqH6oJvUqgUVkBZAWgDREx0SbABWPAIgkVOJpUosmD+zAf+pVQ+ZzOMr5yG0fK9nNfw6Hw8FtH/wdHnjwHoaHxd0BajLO6Yf/ng1/+B8pn+ePKjR6MvuaiJroNVUhODpAcHQA7+vPnvugxYJVPE1qPgGgobsBCjbIZjQaZ011iqj6WDDt6f+/+gMcMSjq3+328OHbPlbSm/8cmzZeRDKR4MmnHjVkvL89NsUdq6qotacIP4v6i0oANAsGAfpixhwEs8GQIMDQ0DGSYf+Cjy8lF0Da07+m0veLrxsyl9Vq5X3v/SDNza2GjFfo2O0Obn3/R6iqyrp0/TlM7HsSf89rKZ8TTWokMijzGfNPkEjxHRBG01DFMyLOzwCYo6DjANIGAkZSm/XjqsY/nZgyZC12u4MP3Xo71VUF3v7YQLZu3WZYYKA/qfKtnjSxGko8o9bNhYKoBWAqrmZ0j8kFwkcKTU2y7+9vRlOS2D11OJvaqWhcRUVTO86mdpyNK4lOiNV8LxYLQFzR0p7+x159lNDgUUPme9c7b6RztuHOUsHt9nDrBz7Kj++/i3hc/EQ38Oi32fS5e1I+JxBVqXOljgUwoEJfPpjPAgAFLgBSBgImoqCm/hzcPRBgIGLMKevmG99LS8syQ8YqJt71zhuYmBynt3ehj1Dm3Nkzw/9eXUN1KitAxA+VxZES6LRZqXaUMRPP7jOmAaNxhTZn/gshCVsAYhPDb/iyE8FJAqf3MvrSf9P/q29y/L8+x4GvvB9N4ORisVhxNy3spy0kQul8OZrGwK++achc69Zu5NJL3mLIWMVGc1MLN994iyFjTR3eSaDvQMrnRBIq6QR6UNw/nw+KUgCktADEUp/+Ewae/ucq5y1FLBYrt7znVkPcHtMJNX3zpUQYlPy1EBelWGsBCAsA0Qp/6XDVt2KzF2x80htoQDjN53XqyC7C3oWssJlTU13LTTe+R3icYmbduo2GlVo98/i/pnxc1SCcJnWsCCwAQRaO+C/oTIDRyAJfLFVJW/Xv/sEgfWHx039DfSPXvetG4XGKGaezgptvMkZ4f7NnmmAyjbs0lp/2zEZQrG2BhW0Oojn+6QhPenns89dQORcRfVaEtLuhrWBaBIfjKqqW+pg4/Mzdhsx1443voby8OMxjueT6625iYKCPQFDM9z55cAexiSHK6xcumRyKq3jKF9bLRSAAeli4JVVhWwAWcgFkUPL3P/rE4zIsFgs33fjeoi6sZRSdHV1cvHUb+/aLBTFPxlUeGg5xx8oUFoV4CFxp+ggUCMVqARAWAEYWspkPTVWYOXOcmTPHL3jMWmbH3bhiVhx0nJM65W5akdfiQaE0J8ToWD+Th3YKz7N509aSKfQjitNZwY2/9ds89Mj9QuNoqoJ39wOsuuXPFnxOXNFIKhpltvlTAg0o0pNrUjlvC9wCkJ0AOBKI88KkeDDZxRdfRltbwSZJ5J1rr7meEyePCXcRvKvfn1oAqEm9OFBZYTYxO5tirQZY8AIgFWoyRU61rQx3Q9uboqBZz6euau3E07QKq924D5WiQSxN4Z+RZ3+sN70QoNxRzrXXXC80RqmxevUaOjq6hIOTvLt/wsrf/pOUVfrCCY2qBQSAAUV6ck2qN6igLQDzBgEqSUjGUr7uB33iRX+czgre8fZrhccpJRyOcq56+7U8uf1XQuM8PxHlRDDBGk+Kg1o8CGV1QvPkg3xYAEKKymhMwRtVGIsrXFIt7hoXdwEI5vjnCk1JEvT168FZB3ad85jFYsVV3zorDFbNWg3eLLpSlqJb3HxE05UW1TTGXhH7sgBcfvnbcLkWLl+7VLn26uvo6+tBS+OCSUV8ZpSpQzupu+i6BZ8TSShUOS90A8RDM8QCxgSa5ZCiFACVdhuV9nncfIlIytfFVI17z4gLgCsufxtOZ4XwOKXGRVsu5rXXXmJsPPuPjgb8cMDPP22oX/hJ8TC4ikAACFoADs7EuX8wyFhM39xHoknGYipjcQVfVMEXSxI+L8PsnkvFuyeKCgBrZLRPJU9NhYxC01RC40OExofwHdp9weMVtc2z9dtnS7W2dLwRe2B3XdicJpLm9B/oO0BsUqyLm9vtme00JjmfpqYWNm28iNcP7RcaZ2zvYykFQFzRWzyXnfdpDxa++R8KxAVgs1hodNppdDportCvRqedJqeDFlf5G7+3uhw0Oh04bQvcWhLhlPPsGI0wLthn3eOpZNullwuNUapYLFbecdU7eeS/fyI0zr0DQf5xQ/3ChX/VWUtPWWEHgou6ALaPhtk+mvozfT5GxA2ICoDlmpIoqs0/EyJTPiJTPkaP7rngsfKq+llBMNfspZ1I5XLKG9uxu+cPWBl/7THhNV16yVuwG+i2KDXeeuVVHDp8QMgKMHngabRkAkuKYK9YQqXsvGDAIggAhNQCYAz9QJZ1AfZVHietsxt4o9NBa4W+gTc67bS6ymlyOmis0B8TrvKuqXr+fwoe9y3uZjofl1x8mQz8S0FX11pqa+uZmsqg098CDEWTHJiJsTWVOTsRMVUAhJMKo9EE3nCMsWiCsWickUicsWicsWiCkXCM/mD+CxcZETcgKgC6hFdQZMT8E8T8E4yfuDAKtsxVjXO2CNJcIaSKxnbG9z4uNKfd7uCSiy8TGqPUqa2tp7Ojix6BXubJsJ/pY7up3bSwzzeqaJzvhCmCAMAIMJzi8SQwCaSwxabmuXdfygp3njJTkjEWTmjQeUJQANjtdi7euk1ojFLHYrGw7dLLeXqH2P1t+2gktQBIE+uRDXOb91g0zkg4zmg0zng0gTcSxxfRN3pfJI4vEieUNK9WfyoKwQKw5ARAKpLhGYL9Bwn2HzR03I0bt0g/ZAZceunlQgIAYPLQztQCYB53T0VdM00briTo7SU86RWaP0ecBtJFoPoQEAC+SDx/AkBJvSEcDcTpTVeUIw0b1m+momJxsUBLkc2btvLsc88Qi2V/An7SF+YvulOUVn5D8C1sO4oqKmPR+Bub9tkb+FhU3+C9kTc3/aRJpXeNpBAEwGrhFUjSsmXTVrOXUBR0dqymtraOqanJrMeYOXGh2+dsVPXCdMDV136U1dd+FAAlHiXg7SXg7SPo7SXg7SXo6yfg7SU8PmxYf/VFkkmKxCiwIdsJRqN5rNqWB/P/hg2bhcdYCjgcDtZ0rxOKv3lhMkogqVJ5XnDNVELFNxvxPjo5gjeunmN2P/sE70+Y11DHLApBAEgLQI6pq2tg2bLlZi+jSLCwds0G9rx0YWBnpoSGjpEITmL3LBx5HFehbIH6UzaHk5qV66lZuf6Cx9REnOBo/xsCIeDtnRUJ/YTGBw1rDz0PmQqArFkwVz8XKKnnen5CzB9bWVnFyhXtQmMsJdat2ygkAOKqxode9mG16H7tuU0/fs4pXSyIuhSRMQBLgLVrLtxIJAuzds16IQGApuE/+TL1Fy9c9jWeVHHNl5qWBqvdQVVbN1VtFzZwUpUEodEzZ1kO+maFQi9Bb5+o5SCT+tNCmQApG/YYiZIENfV7sW9GzGe8pns9FotwqOKSoX1VJ05nBdFo6tTMVCw2Al4CvpiiovtFsvZniAgAC9IFkHNWr15a3f5EaW1dRlVlNf5AmmYjKQgOHE4tAHIQE2S12als7aSy9cIqjw99optERKjqWs4tAGlb9hpFmgYxk3GVfsHa/50d8ra2GGw2G50dXRw5+rrZS1lSJFTNClQDaforL4xICp8LeALYj95oRGIwTmcFbdL8v0gsdHaKGaZCQ6nbNSfTnECNJDo9Krr5Q2YCQMwCkC8BkKb17/6ZWPbHIcBmK2PlynaBEZYmy5cXR8fWEqRZ5MUiFoAQ8KGz/t2C7hKYu1af9XuKEE/JQixrbcNiMa/MwuiYj1OnjlNbU0dtbR01NbVFkY3Q2trG/gOvZf360GBqAaCoeodAax6sxAakGMaBgQyeJxYDkC8XgJr6dC9q/m9pbi2KehuKkiQcDhMKBQmFQySTSVPdhVIAmEYTcGGjnAwRLgV8Ft7Zaz4HbAPnCoKzrwYD11BSmB38d+ZMH88+98w5/5/TWUFNTS011bX6z7mrupaamhoEaskYhuj7Fp0YRImFsaUoCZ1UwZGHRpQGFBnqBTJxWggJgJP+7P2/iyJNoGRPSCwbobmlVej1IiSTCaLRKMFggGAwoP8eOuv3uf8/FiUUCp5T9MrprDBVADQ2NOEsdxIVSAeUZIVQPWAjBUAqxmevl+Z5rJr5LQfd6FaFJUtLyzJT55+aurC+fTQaweuN4PVeWFemvNz5hqWgtqaOrtVrTOmi1lDfgMNRTjye5WlQ04hNjeBqWdgXrKgqLFSm1kAMEACZdkkaEZmkLxDBF4kLl0RNi5Jay4xExQI0mpvMueUkEgn+5Zv/kPXro9EIqqpgNak9usViob6hkaGhM6bMv4QpCgGQihngtdnrfNws7FZYTiEcN3NIfV3WdVkMYWp6cfn0sVgUr3f4DXFQUeEyRQBYLFbq6urnFSmZEk8nAPJUR8SAPgOZZAAAnEF3F2S1g2vAXSeG+cuL2rN5+SImSr3BD0fFAgDr680xSNrtdhwOB/F49q6UcDiMx5OivW6Oqa2pkwIg/5gWA5APQsCB2et8nJwrCM7+fSVgjhQ2CKvVRnX1/L0F8oVIQR2A2lrzunhVV1ULCYDYdOqKfvmKA8yjBUBBdxeszXaifz40wB1rltGSSytAGgEgagGorjIvXMnlcgsJgFA4ZKoAqKkx9361RCl6C0C2RIHDs9f5OIB25o85aAcKvsOHx+3BajUvAFDTNGZmss4uAcwVAJWV1UKvT8yMpXw8X5VEDQgCzFQAAOxBQABMxhJ8dOchHr9hKxW5cI+k2fxVDbwCxVGsVhsejyfr14vicrmZns6+rXQ4ZG4ylhQAeWEcPV5nDD3mLvtoZ4pbAKQiDpyYvc6nDN1CcL5roRvoBAqi72SFy9w65H7/DIpAZTqLxUJNtXmnqaqqC9s2LwYllrowiSrQdTBT/MM9JMJ+0WEWIwCeAz4hMtnOkSlu3L6PH1+9ieVuY75KoaSi13UPRxibCM32R58tERtT8Eb1n2NxhYSAMnM6naZm3bjdYuIjFA4ZtJLsKIYMoQIkhr6Z+2avMfQN3rvA74aWCy1VAZCKJHpzlNPAU+c9ZkWPLZjPrdCFXvsgL1SY/GVarP//fCo9Vaa2UnU4xDYfNZ46ql0TyjbPjJH9z6R/UmqSQN8inv8YuitAyH32rHeaLT/fw2fXr+CO7lY6Ks/9LKua9kYd9wvqup/VZtUbjjEaTRDOUzc2u91cw6DbdX6fycURCpkrABxFkD6ZJ2Z4c9MeQw+wPfv3uRO8D4EiPkawFAVAKlT0nOkBYL677zIWFgdiR87zsJWZ+6cpZv8/IOw+UdIJgBzv/6qS4PjjPxAd5hSwmLw4L/AssHA7xAyZiiX5u/29/N3+XhqdDla4y0mo2mxntkReLCiLxewNzCUoACIRkwWAo2QFQJI3N3Av55rg5zu1G9+/OEdIAbA4hmevZ+d5rJFzBcEVwA3ZTmQ1uRb5tKAFwHQBIGjKnTjwFGo8grOpnYrGVfrPpnbKXGKxBZly8CdfIziaSf2elGTToeU/MEAAnI1+os9js6AsMVuSiAoAsy0AWgGKuhSEONfsfr4J/uxTe+qAoCJGCgDjmPugvDj77ysREABmI2oBMDsgSNQCEJ/24Xvx4Qv+f7u7FmdTO57mVdQv76SqtRNPSzuVze2UVxmTtnniybs48svvGjHUfHU30vEw8FX0OJklhUjMixEIuwBMjgFQ0tRoyDEab96D5/Ohn31qHwVk9yGkAMglQtFbsWyL2BhEsbsA4oncnDgToSkSvVMEevddUDnH7qqisqWdypaON0SBp6WDqtYOnDXps3WiM+Psv+/vOL3rp0Ytd3sWr0kCXwaE/Q/FRjJprgBwucUEgNlZAEnjBVSU+f3m853ax8is4qXkLKQAyB0BkRfHYmYKAI3pmezTkUAvCmImYRNOQ4mwn8nTB5k8ffCCx8qc7llBoAuEyhbdYmCzlxP09eM78iJDr25HSRj2dz8JpG5qsDB3A38EXGTUYoqBSCRP5YwXoNgtAAZ8555CF59zm77QPVSSHikAcoeQBSBsoj8vEAiQSIjVVDfbBWCGAEhFMhpiqv8wU/3zla3ICT8UeK0C/D66O6vga2YYhV6LP2JaOptoDID+mdcwq0BqMChsgdgHPG/AUiQZYl7Sa+kTQCCuKBgKmOaTFDX/ezyVwml4opgdEGUyUcQEAOgFRr5swFqKikDQvENnRYVLKHZFURSiJloOg0HhmhXZl+6UZIUUALlDQc8HzQpN0/D7s365EKI1AMw2/wPCLowi5y70YCdR/gH4mQHjFA0TE+YFfFssFioqxEqNmBkHMD4xLjqEFAB5RroAcstJ4LJsXzw2Pkptbf4bAq1a2cHNN93C1NSkfk1PMj01mXFgotnmf03TGB8X6m5bzASBfzJoLA34OHpXzrcaNGZBMzY2yrq1G02b3+1yE8pwE3c4ynG7PbhdblwuF263x9TiW+Njwt85KQDyjBQAueUYAgLA6x1hTXf+e3zX1NTOu4lHoxGmp6eYnpnSf85ds/+ew+wMgKmpSeEYhiLmy8CggeOFgJuAJ9FTW0ua0TGfqfPXNzQC4HJ7cLvduCrcuF1u3B4PrgoXrjd+d1NmcrGws4lGI/gDwhZL2UowzxTOJ6g0OSbyYpFudrnA6aygpaWClpZlFzwWjUbesBY0Ngp1qBRmeNjI/a+o2AN8Kwfj+oHrgB8BH8zB+AXD4OAAmqZhMakQ1y3vKc63d+BMv+gQE0gBkHdkDEBuERIAg0MDZhfXyBins4LW1jY2rN9MY4NQh0ph+geEW+gWI9PA7Syu9O9iCAO3AX+J3myrJIlEwqZbAYqRgYE+0SH2GbAMySKRAiC3CAmAeDzO0LAUxYtlCQqAOPABINf/4RrwFeBy4OUcz2UafX09Zi+h6DDgPZMCwASkAMgtxxHs9tTTc9KgpSwNfKNe07InTCIJ/C7wmzzOuR+918XH0ANdCw2hovTHT2RbP2lpMjExxrh49sReI9YiWRxSAOQWBdgpMsDRY4cwv01J8aC/X0uGGPAh4CET5taA+4B1wPuBR8mda0BFL/l6CL1L5/3At4H/C/we8B50QbIKvWX3l0QmGx4eNCKgbclw7PgRI4Z5xYhBJItDBgHmnmeA92X7Yr9/hsHBMyxfvuR6s2SBxrGjeau0ZzaDwK2Yb4pXgZ/PXrXoDbDeAbwF6AYWap8Y4cJe6Qu1Wh2bnSdTnkSwiNHhwwe58oqrRIZYImgcPnJh6etFchKQfhcTkAIg9/xadID9B16TAiADent7lkoBoIeAz1B4bUqngAdnrzlqZ69qdAtBGH3duaxY8xowDjRkO8D+/a9xxeVvwyLYVrrU6es7zeTkhOgwjxuxFsnikZ/u3HMULmgct7gBjh0uuNr2hchr+wyxIn4CuBb4A/SAt4fRA5QKoTHJSXRz+20U3ua/EFPAafT38DB6oGKuy9Wp6I1lsmbGPy3jbzJgrzHfOSkATEJaAHKPBjyB7qvMCkVJsnffK7z9bdcYtqhSY3Jygp6eE8LDAA+gp9LtnOfxZmA1umm7a/b3rtkrl+UPjwDfRM/DX7IVjhbJE+hpkVnz4p7ddHWtNWg5pcf4xBgnTx0XHSYI7DJgOZIskAIgP9yLIKYuXQAAC2hJREFUgAAAePXVPWzbdgXOcqdBSyotdr+wE00TDpb8b1JvsHP9x1+Y57E63hQD54uEbAojDAK/QDf3P4uMBF0sP0ffXDzZDjA0fIbTvafo7OgyblUlxPMv7DLiO/c4ejCrxASkAMgPu4A+oD3bAaKxKK+88iJXvf1ao9ZUMoyPj3L0qCHR/w+mf8qCTKIH5M0XlFfFuRaDFnTBUAc40APiptEDoU6gV/RbcsUMDCYIPILu0sma53b/ho721aZVBixURsd8HDtmSMDtXUYMIskOKQDyw1zK1F+JDPLyKy+wZcvFVFfVGLOqEuHXv3nKiJOIl9zl0vvR85xlrnN+uRtBATAyMsTB1/dx0ZZLjFlRSaDx9NOPG/Gd6weeNmBBkiyRQYD54x4EzbiJRIJf/3q7QcspDY4dP0Jv7ykjhvo+elEdSemwCwMsKbue/TXRaMSA5ZQGhw4f5MygcO1/gB+yuPROicFIAZA/TqL7coU4cfIoJ08KVRguGWKxKL9+5kkjhooD/27EQJKCQgO+JzpIOBzi6V8/YcByip9gMMCvnzHkEKKiCwCJiUgBkF++YsQgjz/5y4x7hpcy259+jEDAb8RQD6K7ACSlx7+h1wQQ4vDhgxw5+roByylmNJ548pdEImEjBnsQGDBiIEn22MxewBLjFPBuoE1kkGQywfjEGBvWb16ywUmHDh/g+RcMyx76A6Cwei9LjCIBuIFrRAfqH+hj3doNOJ0VwosqRl5+5UWj8v5V4KMUTy2LkkVaAPLPPxoxyOnTJ3ludz77vxQOvlEv2596zKjhfgG8atRgkoLkTgwo5BSNRnjokfuJxaIGLKm46OvrYeeuHUYN91P02hYSk5EWgPxzHL2aW7PoQGcG+2mob6ShIZs08+IkFArywIM/MsoMqaBX1Rs1YjBJwRJBrwcgXNw/EgkzMTHG+nUbl4z1bWJinJ8+/GMSCUNqUMnTfwEhBYA5DKN/CYQ51XOCZcuWU1OTy0J0hUEsFuXBh+5jYkLYpTvHfcB/GDWYpKB5GfgkUCk60OTkBH7/DGu61wKlLQJm/NM88JMfEQobFnMkv3MFhBQA5nAc2AasER1IVVVOnDzKypXtVFUu1Hit+InH4/z04fsYGRkyasgo8EH0AjyS0ieObun5gBGDjY56iUQirO7solRFQDAY4IGf3MOMcQ22poFbANnYpECQAsA8XgQ+BdhFB1IUhePHj9K2bDnV1aVXJGjO9zo0dMbIYb8E/MrIASUFz+vA9cAKIwYbGRnC7/ezevWaknMHTE1N8MBPfsT09KSRw36e+XtsSExCCgDzmDt5vsuIwRQlyZGjh2hoaKChvtGIIQuCQMDPTx68B6/X0CD9g+jmYFmEZOmxF70vhyH3Pt+oF59vhO7utdhspXE7HRkZ4oEH7yEQNCTFdo5XgP+F7GlRUJTGJ7Z4eQn4EAJ9y89G01SOHz+K1WphxYqVFLtpcmj4DA8+dB9Txp5CFOB9gKHmBEnR4EX/DBgivAEmpyY41XOC9lWdVFS4jBrWFA6+vo+f/+KnxGKG9ueJowc+y1TbAkMKAHNR0F0Bn8Swvgwa/QO9+HxeOju7KSsrznYPr+19mV/+6hGiUcNTrr6BXiNesnR5EbgWWGXUgOFwiEOHDlBbW09DQ/FZ4BKJOE/veJzndv8GVTXcMPYXwM+MHlQiTnEfEUuHzwLfMXpQt9vDjb/1HrqLqKd5KBTkyacezVW545fRU8HiuRhcUlSsAA4AhqfPrFu7kRuuvxmXy2300DlhaOgMjz3xcyYnJ3Ix/OPAbyNN/wWJFACFw0/R3QGGs2XzxVxz9XUFfUPSNI2Dr+/jNzufzlXjlXHgEqTpX/ImtwIPkYP7oNvt4ep3vIvNm7YWbIBgOBzi2eee4cDBvUZ09puPQWArkBNlIRGnMD+ZS5Nq9Ip0XbkYvLzcyVuvvIptl16OzVZYboH+/l6e+c12fKM5K8evop9CZEcXyfn8NfDlXA3e3NzKtddcT/uqzlxNsWgSiTiv7X2FF198lljcUF//2cTQ4yyez9UEEnGkACgsNqN3DMxZLl+lp4q3vOVKtl50KXa7I1fTZERvXw979uymf0C4Y2s6vgD8c64nkRQlFuB+4CO5nGRZ63KuuOJtdHetM80iEImE2bvvFV597SWjKmkuhArcjt7wR1LASAFQeLwdeArIaceRigoXmzddxEVbLqE+j2mDsViUo0cPsf/Aa3h9I/mY8tvAn+RjIknRUgH8Brg81xPVVNeyefNWNm26iOqqfNTs0Ojv7+Pg6/s4fuIIyWQyD3PyefRgW0mBIwVAYfIe9KjZvNjqly1bzpru9XR3raW+3pCMxHOIxqL0nj7FiVPHOHnyOMmkITXFM+Gn6CWXZb6/JB21wA70OJGcY7FYaG1to7trLas7u2lqasao23EiEWdgoI+TPSfoOXXC6Hz+dEjBXURIAVC4fBK4izz/jWqqa1m+fCXL21bQ0rKMurp6HI7yjF+vaSoz/hl8vhGGhwcZGh5keHgwF6lF6XgSPd8/Z05OSclRD/wauCjfEzvLnSxrW8Gy1jbq6xuora2ntqaW8nLngq/RNJVgMMjk1ARTU5OMjfkYGjrD6JjPjO8bwH+iF/uRgrtIkAKgsPmfwHcxuV5DpaeKqupqXBUuXC43FosFp9MJWIhGI0RjUaKRCP6An5mZKRRFMXO5AP+N7tOV6X6SxdIIPANsMnshADabDaezArv93Irh0Yj+vSsgvgH8GTLdTyIxlFuAMPoXS17prwcwoL+CZElTi16z3uzPcrFcX8nqXZZIJBlxNXrvALO/6IV+fQewZvkeSyRnU47eutbsz3QhXwn0ImYSiSTHbEEvrGH2l74Qrxh6Z0WJxEgs6DUCzP58F+I1il5OWSKR5IkG4DHM//IX0jWGvBFJcsst6JUkzf6sF8q1F2gXeUMlEkl2WIAvopvfzL4RmH09g0G93SWSNKxAL9Jl9mfezEsF/h1YODVBIpHkhbcBA5h/UzDjiqDnGkt/vySf2IAvoWeXmP0dyPfVC1wv/hZKJBKjqAK+xdKyBrwEbDDizZNIsmQDSydLQEVPRfYY8cZJJBLjuQjYjfk3i1xeXuD3kad+SWFgAT4O+DD/u5Graw96aXKJRFLgWIA7gGHMv3EYecXRG/lUG/dWSSSGUQP8LaWVpnsMvVWyLBQnkRQZTuDT6D47s28kIlcY+FdglbFvj0SSE2rRUwZnMP+7k+3Vg17Kt7D6hUskkkVjR+8ncAzzbyyLuWaArwIthr8jEknuqUXvhncc879LmVwqevfR9yDdaxJJyWEFfgu9qlkQ8284C92EnkUXLO6cvAsSSX6xAO8EHkQvVGX2d+z8axi4E1ifqzdAIpEUFh7gE+htTxXMvwntB/4eWJPL/2iJxGSqgQ+j96kwM1ZgAPgmemCfPO1LZJDHEqYWvcfAO2evDeT+8zAJPA88jl7R8EyO55NICg0HcNXsdfnsVZujuXqBF4AX0bOEDqILAYkEkAJA8ibN6Del9cA6YC36ybwyi7ES6Jt7H/pN5xXgZeCUEQuVSEoIC/p37WKgE+iY/dmJXvo7nUvMj94j5PTs1TN77QVGcrNkSakgBYAkHW3oAXm16C4E9+zPGnTfZhjdrBmZ/dkPDKG7GCQSiTg1gIs3S/DOAFEgZNqKJBKJRCKRSCQSiUQikUgkEolEIpFIJBKJRCKRSCQSiUQikUgkEolEIpFIJBKJRCKRSCQSiUQikUgkEolEIpFIJBKJRCKRSCQSiUQikUgkEolEIpFIJBKJRCKRSCQSiUQikUgkEolEIpFIJBKJRCKRSCQSiUQikUgkEolEIpFIJBKJRCKRSCQSiUQikUgkEolEIpFIJBKJRCKRSCQSiUQikUjyy/8H2QzDsufRWPgAAAAASUVORK5CYII=)"
+              ]
+            }
+          },
+          "position": {
+            "x": 3,
+            "y": 14,
+            "width": 1,
+            "height": 4
+          }
+        },
+        {
+          "widget": {
+            "name": "3fa477d2",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "4ed9ef43",
+                  "fields": [
+                    {
+                      "name": "incident_severity",
+                      "expression": "`incident_severity`"
+                    },
+                    {
+                      "name": "sum(count(incident_severity))",
+                      "expression": "SUM(`count(incident_severity)`)"
+                    },
+                    {
+                      "name": "incident_type",
+                      "expression": "`incident_type`"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 3,
+              "widgetType": "bar",
+              "encodings": {
+                "x": {
+                  "fieldName": "sum(count(incident_severity))",
+                  "axis": {
+                    "title": "Count of Incident Type by Severity"
+                  },
+                  "displayName": "count(incident.severity)",
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                },
+                "y": {
+                  "fieldName": "incident_type",
+                  "axis": {
+                    "title": "Incident type"
+                  },
+                  "displayName": "Incident type",
+                  "scale": {
+                    "type": "categorical"
+                  }
+                },
+                "color": {
+                  "fieldName": "incident_severity",
+                  "displayName": "incident_severity",
+                  "scale": {
+                    "type": "categorical",
+                    "mappings": [
+                      {
+                        "value": "Total Loss",
+                        "color": "#C62828"
+                      },
+                      {
+                        "value": "Minor Damage",
+                        "color": "#D9822B"
+                      },
+                      {
+                        "value": "Trivial Damage",
+                        "color": "#E6A8A1"
+                      },
+                      {
+                        "value": "Major Damage",
+                        "color": "#EF6C00"
+                      }
+                    ],
+                    "sort": {
+                      "by": "custom-order",
+                      "orderedValues": [
+                        "Total Loss",
+                        "Major Damage",
+                        "Minor Damage",
+                        "Trivial Damage"
+                      ]
+                    }
+                  }
+                }
+              },
+              "format": {
+                "timeFormat": {
+                  "formatType": "moment",
+                  "format": "YYYY-MM-DD HH:mm"
+                }
+              },
+              "frame": {
+                "title": "Summary",
+                "showTitle": true
+              },
+              "mark": {
+                "layout": "stack"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 0,
+            "width": 3,
+            "height": 6
+          }
+        },
+        {
+          "widget": {
+            "name": "66acbfb2",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "ce8a3ca1",
+                  "fields": [
+                    {
+                      "name": "model_year",
+                      "expression": "`model_year`"
+                    },
+                    {
+                      "name": "sum(count)",
+                      "expression": "SUM(`count`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 3,
+              "widgetType": "bar",
+              "encodings": {
+                "x": {
+                  "fieldName": "model_year",
+                  "axis": {
+                    "title": "Vehicle Manufactured Year"
+                  },
+                  "displayName": "Vehicle Manufactured Year",
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                },
+                "y": {
+                  "fieldName": "sum(count)",
+                  "axis": {
+                    "title": "Incident Count"
+                  },
+                  "displayName": "count",
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                }
+              },
+              "format": {
+                "timeFormat": {
+                  "formatType": "moment",
+                  "format": "YYYY-MM-DD HH:mm"
+                }
+              },
+              "frame": {
+                "title": "Incidents by Vehicle Age",
+                "showTitle": true
+              },
+              "mark": {
+                "colors": [
+                  {
+                    "themeColorType": "visualizationColors",
+                    "position": 4
+                  },
+                  "#FFAB00",
+                  "#00A972",
+                  "#FF3621",
+                  "#8BCAE7",
+                  "#AB4057",
+                  "#99DDB4",
+                  "#FCA4A1",
+                  "#919191",
+                  "#BF7080"
+                ],
+                "layout": "stack"
+              }
+            }
+          },
+          "position": {
+            "x": 4,
+            "y": 8,
+            "width": 2,
+            "height": 14
+          }
+        },
+        {
+          "widget": {
+            "name": "002c5a72",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "eb80eff8",
+                  "fields": [
+                    {
+                      "name": "sum(amount)",
+                      "expression": "SUM(`amount`)"
+                    },
+                    {
+                      "name": "incident_type",
+                      "expression": "`incident_type`"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 3,
+              "widgetType": "pie",
+              "encodings": {
+                "angle": {
+                  "fieldName": "sum(amount)",
+                  "scale": {
+                    "type": "quantitative"
+                  },
+                  "displayName": "Loss ratio"
+                },
+                "color": {
+                  "fieldName": "incident_type",
+                  "displayName": "incident_type",
+                  "scale": {
+                    "type": "categorical",
+                    "mappings": [
+                      {
+                        "value": "Multi-vehicle Collision",
+                        "color": "#2E7D32"
+                      },
+                      {
+                        "value": "Parked Car",
+                        "color": "#8C2F39"
+                      },
+                      {
+                        "value": "Vehicle Theft",
+                        "color": "#556B2F"
+                      },
+                      {
+                        "value": "Single Vehicle Collision",
+                        "color": "#C77800"
+                      }
+                    ]
+                  }
+                },
+                "label": {
+                  "show": true
+                }
+              },
+              "frame": {
+                "title": "Loss Ratio by Incident Type",
+                "showTitle": true
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 6,
+            "width": 2,
+            "height": 8
+          }
+        },
+        {
+          "widget": {
+            "name": "44d9d27c",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "fba42bc3",
+                  "fields": [
+                    {
+                      "name": "loss_ratio",
+                      "expression": "`loss_ratio`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "loss_ratio",
+                  "format": {
+                    "type": "number-plain",
+                    "abbreviation": "none",
+                    "decimalPlaces": {
+                      "type": "exact",
+                      "places": 2
+                    }
+                  },
+                  "rowNumber": 1,
+                  "style": {
+                    "bold": true,
+                    "fontSize": 60
+                  }
+                }
+              },
+              "frame": {
+                "description": "Property Loss Ratio",
+                "showDescription": true
+              }
+            }
+          },
+          "position": {
+            "x": 3,
+            "y": 2,
+            "width": 1,
+            "height": 2
+          }
+        },
+        {
+          "widget": {
+            "name": "842d657b",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "48b7de84",
+                  "fields": [
+                    {
+                      "name": "zip_code",
+                      "expression": "`zip_code`"
+                    },
+                    {
+                      "name": "count(*)",
+                      "expression": "COUNT(`*`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 3,
+              "widgetType": "bar",
+              "encodings": {
+                "x": {
+                  "fieldName": "zip_code",
+                  "displayName": "ZIP_CODE",
+                  "scale": {
+                    "type": "categorical",
+                    "sort": {
+                      "by": "y"
+                    }
+                  }
+                },
+                "y": {
+                  "fieldName": "count(*)",
+                  "displayName": "Count of Records",
+                  "scale": {
+                    "type": "quantitative",
+                    "reverse": false
+                  }
+                }
+              },
+              "frame": {
+                "title": "Location of Policies",
+                "showTitle": true
+              },
+              "mark": {
+                "colors": [
+                  {
+                    "themeColorType": "visualizationColors",
+                    "position": 4
+                  },
+                  "#FFAB00",
+                  "#00A972",
+                  "#FF3621",
+                  "#8BCAE7",
+                  "#AB4057",
+                  "#99DDB4",
+                  "#FCA4A1",
+                  "#919191",
+                  "#BF7080"
+                ]
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 14,
+            "width": 3,
+            "height": 8
+          }
+        },
+        {
+          "widget": {
+            "name": "840b42ff",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "294be7b1",
+                  "fields": [
+                    {
+                      "name": "loss_ratio",
+                      "expression": "`loss_ratio`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "loss_ratio",
+                  "format": {
+                    "type": "number-plain",
+                    "abbreviation": "none",
+                    "decimalPlaces": {
+                      "type": "exact",
+                      "places": 2
+                    }
+                  },
+                  "rowNumber": 1,
+                  "style": {
+                    "bold": true,
+                    "fontSize": 60
+                  }
+                }
+              },
+              "frame": {
+                "description": "Liability Loss Ratio",
+                "showDescription": true
+              }
+            }
+          },
+          "position": {
+            "x": 3,
+            "y": 0,
+            "width": 1,
+            "height": 2
+          }
+        },
+        {
+          "widget": {
+            "name": "4a462d36",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "ba40e7fe",
+                  "fields": [
+                    {
+                      "name": "loss_ratio",
+                      "expression": "`loss_ratio`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "loss_ratio",
+                  "format": {
+                    "type": "number-plain",
+                    "abbreviation": "none",
+                    "decimalPlaces": {
+                      "type": "exact",
+                      "places": 2
+                    }
+                  },
+                  "rowNumber": 1,
+                  "style": {
+                    "bold": true,
+                    "fontSize": 60
+                  }
+                }
+              },
+              "frame": {
+                "description": "Loss Ratio",
+                "showDescription": true,
+                "showTitle": false
+              }
+            }
+          },
+          "position": {
+            "x": 3,
+            "y": 4,
+            "width": 1,
+            "height": 2
+          }
+        },
+        {
+          "widget": {
+            "name": "b5d6f58e",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "eac405b3",
+                  "fields": [
+                    {
+                      "name": "incident_hour",
+                      "expression": "`incident_hour`"
+                    },
+                    {
+                      "name": "sum(incidents)",
+                      "expression": "SUM(`incidents`)"
+                    },
+                    {
+                      "name": "sum(liability_amount)",
+                      "expression": "SUM(`liability_amount`)"
+                    },
+                    {
+                      "name": "sum(property_amount)",
+                      "expression": "SUM(`property_amount`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 3,
+              "widgetType": "line",
+              "encodings": {
+                "x": {
+                  "fieldName": "incident_hour",
+                  "displayName": "incident_hour",
+                  "scale": {
+                    "type": "categorical"
+                  }
+                },
+                "y": {
+                  "scale": {
+                    "type": "quantitative"
+                  },
+                  "fields": [
+                    {
+                      "fieldName": "sum(incidents)",
+                      "displayName": "Sum of incidents"
+                    },
+                    {
+                      "fieldName": "sum(liability_amount)",
+                      "displayName": "Sum of liability_amount"
+                    },
+                    {
+                      "fieldName": "sum(property_amount)",
+                      "displayName": "Sum of property_amount"
+                    }
+                  ]
+                }
+              },
+              "format": {
+                "timeFormat": {
+                  "formatType": "moment",
+                  "format": "YYYY-MM-DD HH:mm"
+                }
+              },
+              "frame": {
+                "title": "Frequency & Severity by Hour of Day",
+                "showTitle": true
+              },
+              "mark": {
+                "colors": [
+                  "#64B5F6",
+                  "#F9A825",
+                  "#FF7043",
+                  {
+                    "themeColorType": "visualizationColors",
+                    "position": 4
+                  },
+                  {
+                    "themeColorType": "visualizationColors",
+                    "position": 5
+                  },
+                  {
+                    "themeColorType": "visualizationColors",
+                    "position": 6
+                  },
+                  {
+                    "themeColorType": "visualizationColors",
+                    "position": 7
+                  }
+                ]
+              }
+            }
+          },
+          "position": {
+            "x": 4,
+            "y": 0,
+            "width": 2,
+            "height": 8
+          }
+        },
+        {
+          "widget": {
+            "name": "ec5ecca9",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "e932870b",
+                  "fields": [
+                    {
+                      "name": "driver_age",
+                      "expression": "`driver_age`"
+                    },
+                    {
+                      "name": "sum(total)",
+                      "expression": "SUM(`total`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 3,
+              "widgetType": "bar",
+              "encodings": {
+                "x": {
+                  "fieldName": "driver_age",
+                  "displayName": "driver_age",
+                  "scale": {
+                    "type": "categorical"
+                  }
+                },
+                "y": {
+                  "fieldName": "sum(total)",
+                  "displayName": "Incident count",
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                }
+              },
+              "frame": {
+                "title": "Driver Age Distribution",
+                "showTitle": true
+              },
+              "mark": {
+                "colors": [
+                  {
+                    "themeColorType": "visualizationColors",
+                    "position": 1
+                  },
+                  "#FFAB00",
+                  "#00A972",
+                  "#FF3621",
+                  "#8BCAE7",
+                  "#AB4057",
+                  "#99DDB4",
+                  "#FCA4A1",
+                  "#919191",
+                  "#BF7080"
+                ]
+              }
+            }
+          },
+          "position": {
+            "x": 2,
+            "y": 6,
+            "width": 2,
+            "height": 8
+          }
+        }
+      ],
+      "pageType": "PAGE_TYPE_CANVAS"
+    }
+  ],
+  "uiSettings": {
+    "theme": {
+      "canvasBackgroundColor": {
+        "light": "#F4F2ED",
+        "dark": "#1F1E1D"
+      },
+      "widgetBackgroundColor": {
+        "light": "#EBE9E2",
+        "dark": "#1B1817"
+      },
+      "widgetBorderColor": {
+        "light": "#D5CEC3",
+        "dark": "#2F2E2B"
+      },
+      "fontColor": {
+        "light": "#3D3C39",
+        "dark": "#FAFBF9"
+      },
+      "selectionColor": {
+        "light": "#5F7E52",
+        "dark": "#7A8F3E"
+      },
+      "visualizationColors": [
+        "#1A4F27",
+        "#B35900",
+        "#3A9BDC",
+        "#7A8F3E",
+        "#E8B200",
+        "#767676",
+        "#C23B22"
+      ],
+      "widgetHeaderAlignment": "LEFT"
+    },
+    "applyModeEnabled": false
+  }
+}
